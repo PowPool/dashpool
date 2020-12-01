@@ -7,6 +7,7 @@ require (
 	github.com/ethereum/go-ethereum v1.9.15
 	github.com/garyburd/redigo v1.6.2 // indirect
 	github.com/gorilla/mux v1.7.4
+	github.com/mutalisk999/bitcoin-lib v0.0.0-20200915150029-add077664b9e
 	golang.org/x/crypto v0.0.0-20200311171314-f7b00557c8c4
 	gopkg.in/bsm/ratelimit.v1 v1.0.0-20160220154919-db14e161995a // indirect
 	gopkg.in/redis.v3 v3.6.4

@@ -1,0 +1,147 @@
+package dashcoin
+
+import (
+	"bytes"
+	"encoding/hex"
+	"github.com/mutalisk999/bitcoin-lib/src/bigint"
+	"github.com/mutalisk999/bitcoin-lib/src/serialize"
+	"io"
+)
+
+type BlockHeader struct {
+	Version        int32
+	HashPrevBlock  bigint.Uint256
+	HashMerkleRoot bigint.Uint256
+	Time           uint32
+	Bits           uint32
+	Nonce          uint32
+}
+
+func (b BlockHeader) Pack(writer io.Writer) error {
+	var err error
+	err = serialize.PackInt32(writer, b.Version)
+	if err != nil {
+		return err
+	}
+	err = b.HashPrevBlock.Pack(writer)
+	if err != nil {
+		return err
+	}
+	err = b.HashMerkleRoot.Pack(writer)
+	if err != nil {
+		return err
+	}
+	err = serialize.PackUint32(writer, b.Time)
+	if err != nil {
+		return err
+	}
+	err = serialize.PackUint32(writer, b.Bits)
+	if err != nil {
+		return err
+	}
+	err = serialize.PackUint32(writer, b.Nonce)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (b *BlockHeader) UnPack(reader io.Reader) error {
+	var err error
+	b.Version, err = serialize.UnPackInt32(reader)
+	if err != nil {
+		return err
+	}
+	err = b.HashPrevBlock.UnPack(reader)
+	if err != nil {
+		return err
+	}
+	err = b.HashMerkleRoot.UnPack(reader)
+	if err != nil {
+		return err
+	}
+	b.Time, err = serialize.UnPackUint32(reader)
+	if err != nil {
+		return err
+	}
+	b.Bits, err = serialize.UnPackUint32(reader)
+	if err != nil {
+		return err
+	}
+	b.Nonce, err = serialize.UnPackUint32(reader)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+type Block struct {
+	Header BlockHeader
+	Vtx    []DashTransaction
+}
+
+func (b Block) Pack(writer io.Writer) error {
+	var err error
+	err = b.Header.Pack(writer)
+	if err != nil {
+		return err
+	}
+	err = serialize.PackCompactSize(writer, uint64(len(b.Vtx)))
+	if err != nil {
+		return err
+	}
+	for _, tx := range b.Vtx {
+		err = tx.Pack(writer)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (b Block) PackToHex() (string, error) {
+	bytesBuf := bytes.NewBuffer([]byte{})
+	bufWriter := io.Writer(bytesBuf)
+	err := b.Pack(bufWriter)
+	if err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(bytesBuf.Bytes()), nil
+}
+
+func (b *Block) UnPack(reader io.Reader) error {
+	var err error
+	var txCount uint64
+	err = b.Header.UnPack(reader)
+	if err != nil {
+		return err
+	}
+	txCount, err = serialize.UnPackCompactSize(reader)
+	if err != nil {
+		return err
+	}
+	b.Vtx = make([]DashTransaction, txCount, txCount)
+	for i := 0; i < int(txCount); i++ {
+		var tx DashTransaction
+		err = tx.UnPack(reader)
+		if err != nil {
+			return err
+		}
+		b.Vtx[i] = tx
+	}
+	return nil
+}
+
+func (b *Block) UnPackFromHex(hexStr string) error {
+	blockBytes, err := hex.DecodeString(hexStr)
+	if err != nil {
+		return err
+	}
+	bytesBuf := bytes.NewBuffer(blockBytes)
+	bufReader := io.Reader(bytesBuf)
+	err = b.UnPack(bufReader)
+	if err != nil {
+		return err
+	}
+	return nil
+}
