@@ -1,6 +1,7 @@
 package dashcoin
 
 import (
+	"math"
 	"math/big"
 	"strconv"
 )
@@ -84,11 +85,17 @@ func GetDiffWork(diff float64) (float64, error) {
 func GetHashRateByWork(work float64, secs int64, unit string) float64 {
 	hashRate := work / float64(secs)
 	if unit == "k" || unit == "K" {
-		return hashRate / 1000.0
+		return hashRate / math.Pow(10.0, 3.0)
 	} else if unit == "m" || unit == "M" {
-		return hashRate / 1000.0 / 1000.0
+		return hashRate / math.Pow(10.0, 6.0)
 	} else if unit == "g" || unit == "G" {
-		return hashRate / 1000.0 / 1000.0 / 1000.0
+		return hashRate / math.Pow(10.0, 9.0)
+	} else if unit == "t" || unit == "T" {
+		return hashRate / math.Pow(10.0, 12.0)
+	} else if unit == "p" || unit == "P" {
+		return hashRate / math.Pow(10.0, 15.0)
+	} else if unit == "e" || unit == "E" {
+		return hashRate / math.Pow(10.0, 18.0)
 	} else {
 		return hashRate
 	}
