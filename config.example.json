@@ -9,14 +9,17 @@
 	"cluster": [
 		{
 			"nodeName": "pool1",
+			"nodeId": 1,
 			"nodeIp": "172.24.146.33"
 		},
 		{
 			"nodeName": "pool2",
+			"nodeId": 2,
 			"nodeIp": "172.24.146.37"
 		},
 		{
 			"nodeName": "test-pool1",
+			"nodeId": 999,
 			"nodeIp": "192.168.1.124"
 		}
 	],

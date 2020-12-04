@@ -110,7 +110,6 @@ func PackNumber(num int64) []byte {
 		if num <= 127 {
 			break
 		}
-
 		s[0] += 1
 		s = append(s, byte(num%256))
 		num = num / 256
@@ -305,7 +304,7 @@ func (t *DashCoinBaseTransaction) RecoverToDashTransaction(extraNonce1Hex string
 	}
 
 	if len(extraNonce2) != EXTRANONCE2_SIZE {
-		return DashTransaction{}, errors.New("invalid extraNonce1 length")
+		return DashTransaction{}, errors.New("invalid extraNonce2 length")
 	}
 
 	bytesCoinBaseTx := append(append(append(append([]byte{}, t.CoinBaseTx1...), extraNonce1...), extraNonce2...), t.CoinBaseTx2...)

@@ -9,6 +9,7 @@ import (
 
 type Config struct {
 	Name                      string        `json:"-"`
+	Id                        uint16        `json:"-"`
 	Log                       Log           `json:"log"`
 	Cluster                   []ClusterNode `json:"cluster"`
 	Proxy                     Proxy         `json:"proxy"`
@@ -73,6 +74,7 @@ type Upstream struct {
 
 type ClusterNode struct {
 	NodeName string `json:"nodeName"`
+	NodeId   uint16 `json:"nodeId"`
 	NodeIp   string `json:"nodeIp"`
 }
 

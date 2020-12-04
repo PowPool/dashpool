@@ -32,7 +32,11 @@ func (s *ProxyServer) ListenTCP() {
 
 	Info.Printf("Stratum listening on %s", s.config.Proxy.Stratum.Listen)
 	var accept = make(chan int, s.config.Proxy.Stratum.MaxConn)
-	n := 0
+
+	tag := 0
+	for i := 0; i < s.config.Proxy.Stratum.MaxConn; i++ {
+		accept <- i
+	}
 
 	for {
 		conn, err := server.AcceptTCP()
@@ -49,18 +53,18 @@ func (s *ProxyServer) ListenTCP() {
 			_ = conn.Close()
 			continue
 		}
-		n++
-		cs := &Session{conn: conn, ip: ip, shareCountInv: 0}
 
-		accept <- n
-		go func(cs *Session) {
+		tag = <-accept
+		cs := &Session{conn: conn, ip: ip, shareCountInv: 0, tag: uint16(tag)}
+
+		go func(cs *Session, tag int) {
 			err = s.handleTCPClient(cs)
 			if err != nil {
 				s.removeSession(cs)
 				_ = conn.Close()
 			}
-			<-accept
-		}(cs)
+			accept <- tag
+		}(cs, tag)
 	}
 }
 

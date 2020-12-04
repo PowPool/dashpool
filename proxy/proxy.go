@@ -51,6 +51,9 @@ type Session struct {
 
 	diffNextJob   string
 	shareCountInv int64
+
+	// Session tag
+	tag uint16
 }
 
 func NewProxy(cfg *Config, backend *storage.RedisClient) *ProxyServer {
