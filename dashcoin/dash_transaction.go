@@ -142,7 +142,7 @@ type DashTransaction struct {
 	Vout         []TxOut
 	Version      int32
 	LockTime     uint32
-	ExtraPayload blob.Byteblob
+	ExtraPayload script.Script
 	Version16    int16
 	Type16       int16
 }
@@ -367,7 +367,7 @@ func (t *DashTransaction) GetTrxPrintAble() TrxPrintAble {
 	trxPrintAble.LockTime = t.LockTime
 	trxPrintAble.Version16 = t.Version16
 	trxPrintAble.Type16 = t.Type16
-	trxPrintAble.ExtraPayload = hex.EncodeToString(t.ExtraPayload.GetData())
+	trxPrintAble.ExtraPayload = hex.EncodeToString(t.ExtraPayload.GetScriptBytes())
 
 	return trxPrintAble
 }

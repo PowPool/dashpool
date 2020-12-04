@@ -11,6 +11,7 @@ import (
 	"github.com/mutalisk999/bitcoin-lib/src/serialize"
 	"github.com/mutalisk999/bitcoin-lib/src/utility"
 	"io"
+	"time"
 )
 
 func GetCoinBaseScriptByPubKey(pubKeyHex string) ([]byte, error) {
@@ -103,5 +104,219 @@ func GetCoinBaseScriptHex(wallet string) (string, error) {
 	return hex.EncodeToString(scriptHex), nil
 }
 
+func PackNumber(num int64) []byte {
+	s := []byte{0x1}
+	for {
+		if num <= 127 {
+			break
+		}
+
+		s[0] += 1
+		s = append(s, byte(num%256))
+		num = num / 256
+	}
+	s = append(s, byte(num))
+	return s
+}
+
+func PackString(str string) ([]byte, error) {
+	bytesBuf := bytes.NewBuffer([]byte{})
+	bufWriter := io.Writer(bytesBuf)
+	err := serialize.PackCompactSize(bufWriter, uint64(len(str)))
+	if err != nil {
+		return nil, err
+	}
+	_, err = bufWriter.Write([]byte(str))
+	if err != nil {
+		return nil, err
+	}
+	return bytesBuf.Bytes(), nil
+}
+
+const (
+	EXTRANONCE1_SIZE    = 4
+	EXTRANONCE2_SIZE    = 4
+	COINBASE_TX_VERSION = 3
+	COINBASE_TX_TYPE    = 5
+)
+
 type DashCoinBaseTransaction struct {
+	BlockTime    uint32
+	BlockHeight  uint32
+	RewardValue  int64
+	CBExtras     string
+	CBAuxFlag    []byte
+	ExtraPayload []byte
+	VinScript1   []byte
+	VinScript2   []byte
+	VoutScript   []byte
+	CoinBaseTx1  []byte
+	CoinBaseTx2  []byte
+}
+
+func (t *DashCoinBaseTransaction) _generateCoinB() error {
+	// pack coinb1
+	bytesBuf := bytes.NewBuffer([]byte{})
+	writer := io.Writer(bytesBuf)
+
+	nVersion := int32(COINBASE_TX_TYPE)<<16 | int32(COINBASE_TX_VERSION)
+	err := serialize.PackInt32(writer, nVersion)
+	if err != nil {
+		return err
+	}
+
+	// only 1 vin
+	err = serialize.PackCompactSize(writer, uint64(1))
+	if err != nil {
+		return err
+	}
+
+	var prevOut OutPoint
+	err = prevOut.Hash.SetHex("0000000000000000000000000000000000000000000000000000000000000000")
+	if err != nil {
+		return err
+	}
+	prevOut.N = 0xFFFFFFFF
+
+	err = prevOut.Pack(writer)
+	if err != nil {
+		return err
+	}
+
+	vinScriptLen := len(t.VinScript1) + EXTRANONCE1_SIZE + EXTRANONCE2_SIZE + len(t.VinScript2)
+	err = serialize.PackCompactSize(writer, uint64(vinScriptLen))
+	if err != nil {
+		return err
+	}
+
+	_, err = writer.Write(t.VinScript1)
+	if err != nil {
+		return err
+	}
+
+	t.CoinBaseTx1 = bytesBuf.Bytes()
+
+	// pack coinb2
+	bytesBuf = bytes.NewBuffer([]byte{})
+	writer = io.Writer(bytesBuf)
+
+	_, err = writer.Write(t.VinScript2)
+	if err != nil {
+		return err
+	}
+
+	// sequence
+	err = serialize.PackUint32(writer, 0)
+	if err != nil {
+		return err
+	}
+
+	// only 1 vout
+	err = serialize.PackCompactSize(writer, uint64(1))
+	if err != nil {
+		return err
+	}
+
+	err = serialize.PackInt64(writer, t.RewardValue)
+	if err != nil {
+		return err
+	}
+
+	var scriptPubKey script.Script
+	scriptPubKey.SetScriptBytes(t.VoutScript)
+	err = scriptPubKey.Pack(writer)
+	if err != nil {
+		return err
+	}
+
+	// locktime
+	err = serialize.PackUint32(writer, 0)
+	if err != nil {
+		return err
+	}
+
+	var scriptExtra script.Script
+	scriptExtra.SetScriptBytes(t.ExtraPayload)
+	err = scriptExtra.Pack(writer)
+	if err != nil {
+		return err
+	}
+
+	t.CoinBaseTx2 = bytesBuf.Bytes()
+
+	return nil
+}
+
+func (t *DashCoinBaseTransaction) Initialize(cbWallet string, bTime uint32, height uint32, value int64, flags string,
+	cbPayload string, cbExtras string) error {
+	t.BlockTime = bTime
+	t.BlockHeight = height
+	t.RewardValue = value
+	t.CBExtras = cbExtras
+	cbFlag, err := hex.DecodeString(flags)
+	if err != nil {
+		return errors.New("hex decode CBAuxFlag error")
+	}
+	t.CBAuxFlag = cbFlag
+	payload, err := hex.DecodeString(cbPayload)
+	if err != nil {
+		return errors.New("hex decode ExtraPayload error")
+	}
+	t.ExtraPayload = payload
+
+	bytes1 := PackNumber(int64(t.BlockHeight))
+	bytes2 := t.CBAuxFlag
+	bytes3 := PackNumber(time.Now().Unix())
+	bytes4 := []byte{EXTRANONCE1_SIZE + EXTRANONCE2_SIZE}
+	t.VinScript1 = append(append(append(append([]byte{}, bytes1...), bytes2...), bytes3...), bytes4...)
+
+	script2, err := PackString(t.CBExtras)
+	if err != nil {
+		return errors.New("pack string CBExtras error")
+	}
+	t.VinScript2 = script2
+
+	t.VoutScript, err = GetCoinBaseScript(cbWallet)
+	if err != nil {
+		return errors.New("GetCoinBaseScript error")
+	}
+
+	err = t._generateCoinB()
+	if err != nil {
+		return errors.New("_generateCoinB error")
+	}
+
+	return nil
+}
+
+func (t *DashCoinBaseTransaction) RecoverToDashTransaction(extraNonce1Hex string, extraNonce2Hex string) (DashTransaction, error) {
+	extraNonce1, err := hex.DecodeString(extraNonce1Hex)
+	if err != nil {
+		return DashTransaction{}, errors.New("decode hex extraNonce1Hex error")
+	}
+
+	extraNonce2, err := hex.DecodeString(extraNonce2Hex)
+	if err != nil {
+		return DashTransaction{}, errors.New("decode hex extraNonce2Hex error")
+	}
+
+	if len(extraNonce1) != EXTRANONCE1_SIZE {
+		return DashTransaction{}, errors.New("invalid extraNonce1 length")
+	}
+
+	if len(extraNonce2) != EXTRANONCE2_SIZE {
+		return DashTransaction{}, errors.New("invalid extraNonce1 length")
+	}
+
+	bytesCoinBaseTx := append(append(append(append([]byte{}, t.CoinBaseTx1...), extraNonce1...), extraNonce2...), t.CoinBaseTx2...)
+
+	bytesBuf := bytes.NewBuffer(bytesCoinBaseTx)
+	bufReader := io.Reader(bytesBuf)
+	var dashTx DashTransaction
+	err = dashTx.UnPack(bufReader)
+	if err != nil {
+		return DashTransaction{}, errors.New("RecoverToDashTransaction error")
+	}
+
+	return dashTx, nil
 }
