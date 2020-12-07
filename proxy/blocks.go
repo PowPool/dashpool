@@ -1,15 +1,14 @@
 package proxy
 
 import (
+	"encoding/hex"
 	"github.com/MiningPool0826/dashpool/dashcoin"
-	"math/big"
-	"sync"
-	"time"
-
-	"github.com/ethereum/go-ethereum/common"
-
 	"github.com/MiningPool0826/dashpool/rpc"
 	. "github.com/MiningPool0826/dashpool/util"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/mutalisk999/bitcoin-lib/src/utility"
+	"math/big"
+	"sync"
 )
 
 const maxBacklog = 3
@@ -35,6 +34,7 @@ type BlockTemplatesCollection struct {
 	PrevHash    string
 	NBits       uint32
 	Target      string
+	Difficulty  *big.Int
 	BlockTplMap map[string]BlockTemplate
 	TxDetailMap map[string]string
 	updateTime  int64
@@ -65,7 +65,7 @@ func (s *ProxyServer) fetchBlockTemplate() {
 	// No need to update, we have had fresh job
 	blkTplIntv := MustParseDuration(s.config.Proxy.BlockTemplateCollectInterval)
 	t := s.currentBlockTemplate()
-	if t != nil && t.PrevHash == prevBlockHash && time.Now().Unix()-t.updateTime < int64(blkTplIntv.Seconds()) {
+	if t != nil && t.PrevHash == prevBlockHash && (MakeTimestamp()/1000-t.updateTime < int64(blkTplIntv.Seconds())) {
 		return
 	}
 
@@ -82,26 +82,21 @@ func (s *ProxyServer) fetchBlockTemplate() {
 		newTplCollection.PrevHash = blkTplReply.PreviousBlockHash
 		newTplCollection.NBits = blkTplReply.Bits
 		newTplCollection.Target = blkTplReply.Target
+		newTplCollection.Difficulty = TargetHexToDiff(blkTplReply.Target)
 		newTplCollection.BlockTplMap = make(map[string]BlockTemplate)
 		newTplCollection.TxDetailMap = make(map[string]string)
-		newTplCollection.updateTime = time.Now().Unix()
+		newTplCollection.updateTime = MakeTimestamp() / 1000
 	} else {
 		newTplCollection.Version = t.Version
 		newTplCollection.Height = t.Height
 		newTplCollection.PrevHash = t.PrevHash
 		newTplCollection.NBits = t.NBits
 		newTplCollection.Target = t.Target
+		newTplCollection.Difficulty = TargetHexToDiff(blkTplReply.Target)
 		newTplCollection.BlockTplMap = t.BlockTplMap
 		newTplCollection.TxDetailMap = t.TxDetailMap
-		newTplCollection.updateTime = time.Now().Unix()
+		newTplCollection.updateTime = MakeTimestamp() / 1000
 	}
-
-	//BlkTplId             string
-	//BlkTplTime           uint32
-	//TxIdList             []string
-	//MerkleBranch         []string
-	//CoinBase1            string
-	//CoinBase2            string
 
 	var newTpl BlockTemplate
 	newTpl.BlkTplTime = blkTplReply.CurTime
@@ -114,7 +109,6 @@ func (s *ProxyServer) fetchBlockTemplate() {
 		return
 	}
 
-	//TODO coinb1 coinb2
 	var coinBaseTx dashcoin.DashCoinBaseTransaction
 	err = coinBaseTx.Initialize(s.config.UpstreamCoinBase, newTpl.BlkTplTime, newTplCollection.Height, blkTplReply.CoinBaseValue,
 		blkTplReply.CoinBaseAux.Flags, blkTplReply.CoinbasePayload, s.config.CoinBaseExtraData)
@@ -122,11 +116,17 @@ func (s *ProxyServer) fetchBlockTemplate() {
 		Error.Printf("Error while initialize coinbase transaction on %s: %s", rpcClient.Name, err)
 		return
 	}
-	coinBaseTx.CoinBaseTx1
-	coinBaseTx.CoinBaseTx2
+	newTpl.CoinBase1 = hex.EncodeToString(coinBaseTx.CoinBaseTx1)
+	newTpl.CoinBase2 = hex.EncodeToString(coinBaseTx.CoinBaseTx2)
+	newTpl.BlkTplId = hex.EncodeToString(utility.Sha256(coinBaseTx.CoinBaseTx1))[0:16]
 
-	//s.blockTemplatesCollection.Store(&newTemplate)
-	//Info.Printf("NEW pending block on %s at height %d / %s", rpcClient.Name, height, workInfo[0][0:10])
+	newTplCollection.BlockTplMap[newTpl.BlkTplId] = newTpl
+	for _, tx := range blkTplReply.Transactions {
+		newTplCollection.TxDetailMap[tx.Hash] = tx.Data
+	}
+
+	s.blockTemplatesCollection.Store(&newTplCollection)
+	Info.Printf("NEW pending block on %s at height %d / %s", rpcClient.Name, newTplCollection.Height, newTpl.BlkTplId)
 
 	// Stratum
 	if s.config.Proxy.Stratum.Enabled {

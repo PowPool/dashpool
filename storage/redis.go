@@ -132,7 +132,7 @@ func (r *RedisClient) GetWhitelist() ([]string, error) {
 	return cmd.Val(), nil
 }
 
-func (r *RedisClient) WriteNodeState(id string, height uint64, diff *big.Int) error {
+func (r *RedisClient) WriteNodeState(id string, height uint32, diff *big.Int) error {
 	tx := r.client.Multi()
 	defer tx.Close()
 
@@ -140,7 +140,7 @@ func (r *RedisClient) WriteNodeState(id string, height uint64, diff *big.Int) er
 
 	_, err := tx.Exec(func() error {
 		tx.HSet(r.formatKey("nodes"), join(id, "name"), id)
-		tx.HSet(r.formatKey("nodes"), join(id, "height"), strconv.FormatUint(height, 10))
+		tx.HSet(r.formatKey("nodes"), join(id, "height"), strconv.FormatUint(uint64(height), 10))
 		tx.HSet(r.formatKey("nodes"), join(id, "difficulty"), diff.String())
 		tx.HSet(r.formatKey("nodes"), join(id, "lastBeat"), strconv.FormatInt(now, 10))
 		return nil
