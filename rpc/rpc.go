@@ -40,9 +40,26 @@ type GetBlockReply struct {
 	SealFields []string `json:"sealFields"`
 }
 
-type GetBlockReplyPart struct {
-	Number     string `json:"number"`
-	Difficulty string `json:"difficulty"`
+type CoinBaseAux struct {
+	Flags string `json:"flags"`
+}
+
+type BlockTplTransaction struct {
+	Data string `json:"data"`
+	Hash string `json:"hash"`
+}
+
+type GetBlockTemplateReplyPart struct {
+	Version           uint32                `json:"version"`
+	PreviousBlockHash string                `json:"previousblockhash"`
+	Transactions      []BlockTplTransaction `json:"transactions"`
+	CoinBaseAux       CoinBaseAux           `json:"coinbaseaux"`
+	CoinBaseValue     int64                 `json:"coinbasevalue"`
+	CurTime           uint32                `json:"curtime"`
+	Bits              uint32                `json:"bits"`
+	Target            string                `json:"target"`
+	Height            uint32                `json:"height"`
+	CoinbasePayload   string                `json:"coinbase_payload"`
 }
 
 const receiptStatusSuccessful = "0x1"
@@ -87,12 +104,12 @@ func NewRPCClient(name, url, timeout string) *RPCClient {
 	return rpcClient
 }
 
-func (r *RPCClient) GetWork() ([]string, error) {
-	rpcResp, err := r.doPost(r.Url, "eth_getWork", []string{})
+func (r *RPCClient) GetPrevBlockHash() (string, error) {
+	rpcResp, err := r.doPost(r.Url, "getbestblockhash", []string{})
 	if err != nil {
-		return nil, err
+		return "", err
 	}
-	var reply []string
+	var reply string
 	err = json.Unmarshal(*rpcResp.Result, &reply)
 	return reply, err
 }
@@ -110,13 +127,13 @@ func (r *RPCClient) GetCoinBase() (string, error) {
 	return reply, nil
 }
 
-func (r *RPCClient) GetPendingBlock() (*GetBlockReplyPart, error) {
-	rpcResp, err := r.doPost(r.Url, "eth_getBlockByNumber", []interface{}{"pending", false})
+func (r *RPCClient) GetPendingBlock() (*GetBlockTemplateReplyPart, error) {
+	rpcResp, err := r.doPost(r.Url, "getblocktemplate", []string{})
 	if err != nil {
 		return nil, err
 	}
 	if rpcResp.Result != nil {
-		var reply *GetBlockReplyPart
+		var reply *GetBlockTemplateReplyPart
 		err = json.Unmarshal(*rpcResp.Result, &reply)
 		return reply, err
 	}

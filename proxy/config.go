@@ -27,6 +27,8 @@ type Config struct {
 	BlockUnlocker payouts.UnlockerConfig `json:"unlocker"`
 	Payouts       payouts.PayoutsConfig  `json:"payouts"`
 
+	CoinBaseExtraData string `json:"coinbaseExtraData"`
+
 	NewrelicName    string `json:"newrelicName"`
 	NewrelicKey     string `json:"newrelicKey"`
 	NewrelicVerbose bool   `json:"newrelicVerbose"`
@@ -34,15 +36,17 @@ type Config struct {
 }
 
 type Proxy struct {
-	Enabled              bool   `json:"enabled"`
-	Listen               string `json:"listen"`
-	LimitHeadersSize     int    `json:"limitHeadersSize"`
-	LimitBodySize        int64  `json:"limitBodySize"`
-	BehindReverseProxy   bool   `json:"behindReverseProxy"`
-	BlockRefreshInterval string `json:"blockRefreshInterval"`
-	Difficulty           int64  `json:"difficulty"`
-	StateUpdateInterval  string `json:"stateUpdateInterval"`
-	HashrateExpiration   string `json:"hashrateExpiration"`
+	Enabled                      bool   `json:"enabled"`
+	Listen                       string `json:"listen"`
+	LimitHeadersSize             int    `json:"limitHeadersSize"`
+	LimitBodySize                int64  `json:"limitBodySize"`
+	BehindReverseProxy           bool   `json:"behindReverseProxy"`
+	BlockRefreshInterval         string `json:"blockRefreshInterval"`
+	BlockTemplateCollectInterval string `json:"blockTemplateCollectInterval"`
+
+	Difficulty          int64  `json:"difficulty"`
+	StateUpdateInterval string `json:"stateUpdateInterval"`
+	HashrateExpiration  string `json:"hashrateExpiration"`
 
 	Policy policy.Config `json:"policy"`
 

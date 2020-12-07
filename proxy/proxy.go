@@ -20,15 +20,15 @@ import (
 )
 
 type ProxyServer struct {
-	config             *Config
-	blockTemplate      atomic.Value
-	upstream           int32
-	upstreams          []*rpc.RPCClient
-	backend            *storage.RedisClient
-	diff               string
-	policy             *policy.PolicyServer
-	hashrateExpiration time.Duration
-	failsCount         int64
+	config                   *Config
+	blockTemplatesCollection atomic.Value
+	upstream                 int32
+	upstreams                []*rpc.RPCClient
+	backend                  *storage.RedisClient
+	diff                     string
+	policy                   *policy.PolicyServer
+	hashrateExpiration       time.Duration
+	failsCount               int64
 
 	// Stratum
 	sessionsMu sync.RWMutex
@@ -349,10 +349,19 @@ func (s *ProxyServer) writeError(w http.ResponseWriter, status int, msg string) 
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 }
 
-func (s *ProxyServer) currentBlockTemplate() *BlockTemplate {
-	t := s.blockTemplate.Load()
+//func (s *ProxyServer) currentBlockTemplate() *BlockTemplate {
+//	t := s.blockTemplate.Load()
+//	if t != nil {
+//		return t.(*BlockTemplate)
+//	} else {
+//		return nil
+//	}
+//}
+
+func (s *ProxyServer) currentBlockTemplate() *BlockTemplatesCollection {
+	t := s.blockTemplatesCollection.Load()
 	if t != nil {
-		return t.(*BlockTemplate)
+		return t.(*BlockTemplatesCollection)
 	} else {
 		return nil
 	}
