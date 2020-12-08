@@ -12,13 +12,14 @@ import (
 
 var hasher = ethash.New()
 
-func (s *ProxyServer) processShare(login, id, ip string, shareDiff int64, t *BlockTemplate, params []string) (bool, bool) {
-	nonceHex := params[0]
-	hashNoNonce := params[1]
-	mixDigest := params[2]
-	nonce, _ := strconv.ParseUint(strings.Replace(nonceHex, "0x", "", -1), 16, 64)
+func (s *ProxyServer) processShare(login, id, eNonce1, ip string, shareDiff int64, t *BlockTemplate, params []string) (bool, bool) {
+	tplJobId := params[1]
+	eNonce2Hex := params[2]
+	nTimeHex := params[3]
+	nonceHex := params[4]
+	//nonce, _ := strconv.ParseUint(strings.Replace(nonceHex, "0x", "", -1), 16, 64)
 
-	h, ok := t.headers[hashNoNonce]
+	h, ok := t.BlockTplJobMap[tplJobId]
 	if !ok {
 		Error.Printf("Stale share from %v.%v@%v", login, id, ip)
 		ShareLog.Printf("Stale share from %v.%v@%v", login, id, ip)
@@ -34,20 +35,48 @@ func (s *ProxyServer) processShare(login, id, ip string, shareDiff int64, t *Blo
 		return false, false
 	}
 
+	//share := Block{
+	//	number:      h.height,
+	//	hashNoNonce: common.HexToHash(hashNoNonce),
+	//	difficulty:  big.NewInt(shareDiff),
+	//	nonce:       nonce,
+	//	mixDigest:   common.HexToHash(mixDigest),
+	//}
+	//
+	//block := Block{
+	//	number:      h.height,
+	//	hashNoNonce: common.HexToHash(hashNoNonce),
+	//	difficulty:  h.diff,
+	//	nonce:       nonce,
+	//	mixDigest:   common.HexToHash(mixDigest),
+	//}
+
 	share := Block{
-		number:      h.height,
-		hashNoNonce: common.HexToHash(hashNoNonce),
-		difficulty:  big.NewInt(shareDiff),
-		nonce:       nonce,
-		mixDigest:   common.HexToHash(mixDigest),
+		difficulty:   big.NewInt(shareDiff),
+		coinBase1:    h.CoinBase1,
+		coinBase2:    h.CoinBase2,
+		extraNonce1:  eNonce1,
+		extraNonce2:  eNonce2Hex,
+		merkleBranch: h.MerkleBranch,
+		nVersion:     t.Version,
+		prevHash:     t.PrevHash,
+		sTime:        nTimeHex,
+		nBits:        t.NBits,
+		sNonce:       nonceHex,
 	}
 
 	block := Block{
-		number:      h.height,
-		hashNoNonce: common.HexToHash(hashNoNonce),
-		difficulty:  h.diff,
-		nonce:       nonce,
-		mixDigest:   common.HexToHash(mixDigest),
+		difficulty:   t.Difficulty,
+		coinBase1:    h.CoinBase1,
+		coinBase2:    h.CoinBase2,
+		extraNonce1:  eNonce1,
+		extraNonce2:  eNonce2Hex,
+		merkleBranch: h.MerkleBranch,
+		nVersion:     t.Version,
+		prevHash:     t.PrevHash,
+		sTime:        nTimeHex,
+		nBits:        t.NBits,
+		sNonce:       nonceHex,
 	}
 
 	if !hasher.Verify(share) {
@@ -65,15 +94,15 @@ func (s *ProxyServer) processShare(login, id, ip string, shareDiff int64, t *Blo
 	if hasher.Verify(block) {
 		ok, err := s.rpc().SubmitBlock(params)
 		if err != nil {
-			Error.Printf("Block submission failure at height %v for %v: %v", h.height, t.Header, err)
-			BlockLog.Printf("Block submission failure at height %v for %v: %v", h.height, t.Header, err)
+			Error.Printf("Block submission failure at height %v for %v: %v", t.Height, t.PrevHash, err)
+			BlockLog.Printf("Block submission failure at height %v for %v: %v", t.Height, t.PrevHash, err)
 		} else if !ok {
-			Error.Printf("Block rejected at height %v for %v", h.height, t.Header)
-			BlockLog.Printf("Block rejected at height %v for %v", h.height, t.Header)
+			Error.Printf("Block rejected at height %v for %v", t.Height, t.PrevHash)
+			BlockLog.Printf("Block rejected at height %v for %v", t.Height, t.PrevHash)
 			return false, false
 		} else {
 			s.fetchBlockTemplate()
-			exist, err := s.backend.WriteBlock(login, id, params, shareDiff, h.diff.Int64(), h.height, s.hashrateExpiration)
+			exist, err := s.backend.WriteBlock(login, id, params, shareDiff, t.Difficulty.Int64(), uint64(t.Height), s.hashrateExpiration)
 			if exist {
 				ms := MakeTimestamp()
 				ts := ms / 1000
@@ -88,14 +117,14 @@ func (s *ProxyServer) processShare(login, id, ip string, shareDiff int64, t *Blo
 				Error.Println("Failed to insert block candidate into backend:", err)
 				BlockLog.Println("Failed to insert block candidate into backend:", err)
 			} else {
-				Info.Printf("Inserted block %v to backend", h.height)
-				BlockLog.Printf("Inserted block %v to backend", h.height)
+				Info.Printf("Inserted block %v to backend", t.Height)
+				BlockLog.Printf("Inserted block %v to backend", t.Height)
 			}
-			Info.Printf("Block found by miner %v@%v at height %d", login, ip, h.height)
-			BlockLog.Printf("Block found by miner %v@%v at height %d", login, ip, h.height)
+			Info.Printf("Block found by miner %v@%v at height %d", login, ip, t.Height)
+			BlockLog.Printf("Block found by miner %v@%v at height %d", login, ip, t.Height)
 		}
 	} else {
-		exist, err := s.backend.WriteShare(login, id, params, shareDiff, h.height, s.hashrateExpiration)
+		exist, err := s.backend.WriteShare(login, id, params, shareDiff, uint64(t.Height), s.hashrateExpiration)
 		if exist {
 			ms := MakeTimestamp()
 			ts := ms / 1000

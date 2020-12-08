@@ -156,18 +156,18 @@ func (cs *Session) handleTCPMessage(s *ProxyServer, req *StratumReq) error {
 
 		return cs.sendTCPResult(req.Id, reply)
 
-	//case "eth_submitWork":
-	//	var params []string
-	//	err := json.Unmarshal(req.Params, &params)
-	//	if err != nil {
-	//		Error.Println("Malformed stratum request (eth_submitWork) params from", cs.ip)
-	//		return err
-	//	}
-	//	reply, errReply := s.handleTCPSubmitRPC(cs, req.Worker, params)
-	//	if errReply != nil {
-	//		return cs.sendTCPError(req.Id, errReply)
-	//	}
-	//	return cs.sendTCPResult(req.Id, &reply)
+	case "mining.submit":
+		var params []string
+		err := json.Unmarshal(req.Params, &params)
+		if err != nil {
+			Error.Println("Malformed stratum request (mining.submit) params from", cs.ip)
+			return err
+		}
+		reply, errReply := s.handleTCPSubmitRPC(cs, params)
+		if errReply != nil {
+			return cs.sendTCPError(req.Id, errReply)
+		}
+		return cs.sendTCPResult(req.Id, reply)
 
 	default:
 		errReply := s.handleUnknownRPC(cs, req.Method)
@@ -248,14 +248,14 @@ func (s *ProxyServer) broadcastNewJobs() {
 	}
 	prevHashHex := hex.EncodeToString(prevHash.GetData())
 
-	tpl, ok := t.BlockTplMap[t.lastBlkTplId]
+	tplJob, ok := t.BlockTplJobMap[t.lastBlkTplId]
 	if !ok {
 		return
 	}
 
-	params = append(append(append(append(append(params, t.lastBlkTplId), prevHashHex), tpl.CoinBase1), tpl.CoinBase2), tpl.MerkleBranch)
+	params = append(append(append(append(append(params, t.lastBlkTplId), prevHashHex), tplJob.CoinBase1), tplJob.CoinBase2), tplJob.MerkleBranch)
 	params = append(append(append(params, fmt.Sprintf("%08x", t.Version)),
-		fmt.Sprintf("%08x", t.NBits)), fmt.Sprintf("%08x", tpl.BlkTplTime))
+		fmt.Sprintf("%08x", t.NBits)), fmt.Sprintf("%08x", tplJob.BlkTplJobTime))
 	params = append(params, t.newBlkTpl)
 
 	s.sessionsMu.RLock()

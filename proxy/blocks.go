@@ -5,56 +5,69 @@ import (
 	"github.com/MiningPool0826/dashpool/dashcoin"
 	"github.com/MiningPool0826/dashpool/rpc"
 	. "github.com/MiningPool0826/dashpool/util"
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/mutalisk999/bitcoin-lib/src/utility"
 	"math/big"
 	"sync"
 )
 
-const maxBacklog = 3
+//const maxBacklog = 3
+//
+//type heightDiffPair struct {
+//	diff   *big.Int
+//	height uint64
+//}
 
-type heightDiffPair struct {
-	diff   *big.Int
-	height uint64
+type BlockTemplateJob struct {
+	BlkTplJobId   string
+	BlkTplJobTime uint32
+	TxIdList      []string
+	MerkleBranch  []string
+	CoinBase1     string
+	CoinBase2     string
 }
 
 type BlockTemplate struct {
-	BlkTplId     string
-	BlkTplTime   uint32
-	TxIdList     []string
-	MerkleBranch []string
-	CoinBase1    string
-	CoinBase2    string
+	sync.RWMutex
+	Version        uint32
+	Height         uint32
+	PrevHash       string
+	NBits          uint32
+	Target         string
+	Difficulty     *big.Int
+	BlockTplJobMap map[string]BlockTemplateJob
+	TxDetailMap    map[string]string
+	updateTime     int64
+	newBlkTpl      bool
+	lastBlkTplId   string
 }
 
-type BlockTemplatesCollection struct {
-	sync.RWMutex
-	Version      uint32
-	Height       uint32
-	PrevHash     string
-	NBits        uint32
-	Target       string
-	Difficulty   *big.Int
-	BlockTplMap  map[string]BlockTemplate
-	TxDetailMap  map[string]string
-	updateTime   int64
-	newBlkTpl    bool
-	lastBlkTplId string
-}
+//type Block struct {
+//	difficulty  *big.Int
+//	hashNoNonce common.Hash
+//	nonce       uint64
+//	mixDigest   common.Hash
+//	number      uint64
+//}
 
 type Block struct {
-	difficulty  *big.Int
-	hashNoNonce common.Hash
-	nonce       uint64
-	mixDigest   common.Hash
-	number      uint64
+	difficulty   *big.Int
+	coinBase1    string
+	coinBase2    string
+	extraNonce1  string
+	extraNonce2  string
+	merkleBranch []string
+	nVersion     uint32
+	prevHash     string
+	sTime        string
+	nBits        uint32
+	sNonce       string
 }
 
-func (b Block) Difficulty() *big.Int     { return b.difficulty }
-func (b Block) HashNoNonce() common.Hash { return b.hashNoNonce }
-func (b Block) Nonce() uint64            { return b.nonce }
-func (b Block) MixDigest() common.Hash   { return b.mixDigest }
-func (b Block) NumberU64() uint64        { return b.number }
+//func (b Block) Difficulty() *big.Int     { return b.difficulty }
+//func (b Block) HashNoNonce() common.Hash { return b.hashNoNonce }
+//func (b Block) Nonce() uint64            { return b.nonce }
+//func (b Block) MixDigest() common.Hash   { return b.mixDigest }
+//func (b Block) NumberU64() uint64        { return b.number }
 
 func (s *ProxyServer) fetchBlockTemplate() {
 	rpcClient := s.rpc()
@@ -77,61 +90,61 @@ func (s *ProxyServer) fetchBlockTemplate() {
 		return
 	}
 
-	var newTplCollection BlockTemplatesCollection
+	var newTpl BlockTemplate
 	if t == nil || t.PrevHash != blkTplReply.PreviousBlockHash {
-		newTplCollection.Version = blkTplReply.Version
-		newTplCollection.Height = blkTplReply.Height
-		newTplCollection.PrevHash = blkTplReply.PreviousBlockHash
-		newTplCollection.NBits = blkTplReply.Bits
-		newTplCollection.Target = blkTplReply.Target
-		newTplCollection.Difficulty = TargetHexToDiff(blkTplReply.Target)
-		newTplCollection.BlockTplMap = make(map[string]BlockTemplate)
-		newTplCollection.TxDetailMap = make(map[string]string)
-		newTplCollection.updateTime = MakeTimestamp() / 1000
-		newTplCollection.newBlkTpl = true
+		newTpl.Version = blkTplReply.Version
+		newTpl.Height = blkTplReply.Height
+		newTpl.PrevHash = blkTplReply.PreviousBlockHash
+		newTpl.NBits = blkTplReply.Bits
+		newTpl.Target = blkTplReply.Target
+		newTpl.Difficulty = TargetHexToDiff(blkTplReply.Target)
+		newTpl.BlockTplJobMap = make(map[string]BlockTemplateJob)
+		newTpl.TxDetailMap = make(map[string]string)
+		newTpl.updateTime = MakeTimestamp() / 1000
+		newTpl.newBlkTpl = true
 	} else {
-		newTplCollection.Version = t.Version
-		newTplCollection.Height = t.Height
-		newTplCollection.PrevHash = t.PrevHash
-		newTplCollection.NBits = t.NBits
-		newTplCollection.Target = t.Target
-		newTplCollection.Difficulty = TargetHexToDiff(blkTplReply.Target)
-		newTplCollection.BlockTplMap = t.BlockTplMap
-		newTplCollection.TxDetailMap = t.TxDetailMap
-		newTplCollection.updateTime = MakeTimestamp() / 1000
-		newTplCollection.newBlkTpl = false
+		newTpl.Version = t.Version
+		newTpl.Height = t.Height
+		newTpl.PrevHash = t.PrevHash
+		newTpl.NBits = t.NBits
+		newTpl.Target = t.Target
+		newTpl.Difficulty = TargetHexToDiff(blkTplReply.Target)
+		newTpl.BlockTplJobMap = t.BlockTplJobMap
+		newTpl.TxDetailMap = t.TxDetailMap
+		newTpl.updateTime = MakeTimestamp() / 1000
+		newTpl.newBlkTpl = false
 	}
 
-	var newTpl BlockTemplate
-	newTpl.BlkTplTime = blkTplReply.CurTime
+	var newTplJob BlockTemplateJob
+	newTplJob.BlkTplJobTime = blkTplReply.CurTime
 	for _, tx := range blkTplReply.Transactions {
-		newTpl.TxIdList = append(newTpl.TxIdList, tx.Hash)
+		newTplJob.TxIdList = append(newTplJob.TxIdList, tx.Hash)
 	}
-	newTpl.MerkleBranch, err = dashcoin.GetMerkleBranchHexFromTxIdsWithoutCoinBase(newTpl.TxIdList)
+	newTplJob.MerkleBranch, err = dashcoin.GetMerkleBranchHexFromTxIdsWithoutCoinBase(newTplJob.TxIdList)
 	if err != nil {
 		Error.Printf("Error while get merkle branch on %s: %s", rpcClient.Name, err)
 		return
 	}
 
 	var coinBaseTx dashcoin.DashCoinBaseTransaction
-	err = coinBaseTx.Initialize(s.config.UpstreamCoinBase, newTpl.BlkTplTime, newTplCollection.Height, blkTplReply.CoinBaseValue,
+	err = coinBaseTx.Initialize(s.config.UpstreamCoinBase, newTplJob.BlkTplJobTime, newTpl.Height, blkTplReply.CoinBaseValue,
 		blkTplReply.CoinBaseAux.Flags, blkTplReply.CoinbasePayload, s.config.CoinBaseExtraData)
 	if err != nil {
 		Error.Printf("Error while initialize coinbase transaction on %s: %s", rpcClient.Name, err)
 		return
 	}
-	newTpl.CoinBase1 = hex.EncodeToString(coinBaseTx.CoinBaseTx1)
-	newTpl.CoinBase2 = hex.EncodeToString(coinBaseTx.CoinBaseTx2)
-	newTpl.BlkTplId = hex.EncodeToString(utility.Sha256(coinBaseTx.CoinBaseTx1))[0:16]
+	newTplJob.CoinBase1 = hex.EncodeToString(coinBaseTx.CoinBaseTx1)
+	newTplJob.CoinBase2 = hex.EncodeToString(coinBaseTx.CoinBaseTx2)
+	newTplJob.BlkTplJobId = hex.EncodeToString(utility.Sha256(coinBaseTx.CoinBaseTx1))[0:16]
 
-	newTplCollection.lastBlkTplId = newTpl.BlkTplId
-	newTplCollection.BlockTplMap[newTpl.BlkTplId] = newTpl
+	newTpl.lastBlkTplId = newTplJob.BlkTplJobId
+	newTpl.BlockTplJobMap[newTplJob.BlkTplJobId] = newTplJob
 	for _, tx := range blkTplReply.Transactions {
-		newTplCollection.TxDetailMap[tx.Hash] = tx.Data
+		newTpl.TxDetailMap[tx.Hash] = tx.Data
 	}
 
-	s.blockTemplatesCollection.Store(&newTplCollection)
-	Info.Printf("NEW pending block on %s at height %d / %s", rpcClient.Name, newTplCollection.Height, newTpl.BlkTplId)
+	s.blockTemplate.Store(&newTpl)
+	Info.Printf("NEW pending block on %s at height %d / %s", rpcClient.Name, newTpl.Height, newTplJob.BlkTplJobId)
 
 	// Stratum
 	if s.config.Proxy.Stratum.Enabled {

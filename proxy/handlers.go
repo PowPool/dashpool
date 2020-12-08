@@ -14,7 +14,7 @@ import (
 )
 
 // Allow only lowercase hexadecimal with 0x prefix
-var noncePattern = regexp.MustCompile("^0x[0-9a-f]{16}$")
+var noncePattern = regexp.MustCompile("^0x[0-9a-f]{8}$")
 var hashPattern = regexp.MustCompile("^0x[0-9a-f]{64}$")
 var workerPattern = regexp.MustCompile("^[0-9a-zA-Z-_\x2e]{1,64}$")
 
@@ -28,13 +28,12 @@ func (s *ProxyServer) handleSubscribeRPC(cs *Session) (interface{}, *ErrorReply)
 
 	cs.sid = hex.EncodeToString(utility.Sha256(
 		[]byte(strings.Join([]string{cs.ip, strconv.Itoa(int(s.config.Id)), strconv.Itoa(int(cs.tag))}, ","))))[0:32]
-
-	extraNonce1 := fmt.Sprintf("%08x", uint32(s.config.Id)<<16|uint32(cs.tag))
+	cs.extraNonce1 = fmt.Sprintf("%08x", uint32(s.config.Id)<<16|uint32(cs.tag))
 
 	setDiff := []string{"mining.set_difficulty", cs.sid}
 	notify := []string{"mining.notify", cs.sid}
 	l := []interface{}{setDiff, notify}
-	reply := []interface{}{l, extraNonce1, dashcoin.EXTRANONCE2_SIZE}
+	reply := []interface{}{l, cs.extraNonce1, dashcoin.EXTRANONCE2_SIZE}
 
 	return reply, nil
 }
@@ -65,16 +64,8 @@ func (s *ProxyServer) handleAuthorizeRPC(cs *Session, params []string) (bool, *E
 	return true, nil
 }
 
-//func (s *ProxyServer) handleGetWorkRPC(cs *Session) ([]string, *ErrorReply) {
-//	t := s.currentBlockTemplate()
-//	if t == nil || len(t.Header) == 0 || s.isSick() {
-//		return nil, &ErrorReply{Code: 0, Message: "Work not ready"}
-//	}
-//	return []string{t.Header, t.Seed, cs.diff}, nil
-//}
-
 // Stratum
-func (s *ProxyServer) handleTCPSubmitRPC(cs *Session, id string, params []string) (bool, *ErrorReply) {
+func (s *ProxyServer) handleTCPSubmitRPC(cs *Session, params []string) (bool, *ErrorReply) {
 	s.sessionsMu.RLock()
 	_, ok := s.sessions[cs]
 	s.sessionsMu.RUnlock()
@@ -82,49 +73,42 @@ func (s *ProxyServer) handleTCPSubmitRPC(cs *Session, id string, params []string
 	if !ok {
 		return false, &ErrorReply{Code: 25, Message: "Not subscribed"}
 	}
-	return s.handleSubmitRPC(cs, cs.login, id, params)
+	return s.handleSubmitRPC(cs, params)
 }
 
-func (s *ProxyServer) handleSubmitRPC(cs *Session, login, id string, params []string) (bool, *ErrorReply) {
-	if !workerPattern.MatchString(id) {
-		if !workerPattern.MatchString(cs.id) {
-			id = "eth1.0"
-		} else {
-			id = cs.id
-		}
-	}
-	if len(params) != 3 {
+func (s *ProxyServer) handleSubmitRPC(cs *Session, params []string) (bool, *ErrorReply) {
+	if len(params) != 5 {
 		s.policy.ApplyMalformedPolicy(cs.ip)
-		Error.Printf("Malformed params from %s@%s %v", login, cs.ip, params)
+		Error.Printf("Malformed params from %s@%s %v", cs.login, cs.ip, params)
 		return false, &ErrorReply{Code: -1, Message: "Invalid params"}
 	}
 
-	if !noncePattern.MatchString(params[0]) || !hashPattern.MatchString(params[1]) || !hashPattern.MatchString(params[2]) {
+	if !noncePattern.MatchString(params[2]) || !noncePattern.MatchString(params[3]) || !noncePattern.MatchString(params[4]) {
 		s.policy.ApplyMalformedPolicy(cs.ip)
-		Error.Printf("Malformed PoW result from %s@%s %v", login, cs.ip, params)
+		Error.Printf("Malformed PoW result from %s@%s %v", cs.login, cs.ip, params)
 		return false, &ErrorReply{Code: -1, Message: "Malformed PoW result"}
 	}
 	t := s.currentBlockTemplate()
-	exist, validShare := s.processShare(login, id, cs.ip, TargetHexToDiff(cs.target).Int64(), t, params)
+	exist, validShare := s.processShare(cs.login, cs.id, cs.extraNonce1, cs.ip, TargetHexToDiff(cs.target).Int64(), t, params)
 	ok := s.policy.ApplySharePolicy(cs.ip, !exist && validShare)
 
 	if exist {
-		Error.Printf("Duplicate share from %s@%s %v", login, cs.ip, params)
-		ShareLog.Printf("Duplicate share from %s@%s %v", login, cs.ip, params)
+		Error.Printf("Duplicate share from %s@%s %v", cs.login, cs.ip, params)
+		ShareLog.Printf("Duplicate share from %s@%s %v", cs.login, cs.ip, params)
 		return false, &ErrorReply{Code: 22, Message: "Duplicate share"}
 	}
 
 	if !validShare {
-		Error.Printf("Invalid share from %s.%s@%s", login, id, cs.ip)
-		ShareLog.Printf("Invalid share from %s.%s@%s", login, id, cs.ip)
+		Error.Printf("Invalid share from %s.%s@%s", cs.login, cs.id, cs.ip)
+		ShareLog.Printf("Invalid share from %s.%s@%s", cs.login, cs.id, cs.ip)
 		// Bad shares limit reached, return error and close
 		if !ok {
 			return false, &ErrorReply{Code: 23, Message: "Invalid share"}
 		}
 		return false, nil
 	}
-	Info.Printf("Valid share from %s.%s@%s", login, id, cs.ip)
-	ShareLog.Printf("Valid share from %s.%s@%s", login, id, cs.ip)
+	Info.Printf("Valid share from %s.%s@%s", cs.login, cs.id, cs.ip)
+	ShareLog.Printf("Valid share from %s.%s@%s", cs.login, cs.id, cs.ip)
 
 	if !ok {
 		return true, &ErrorReply{Code: -1, Message: "High rate of invalid shares"}
