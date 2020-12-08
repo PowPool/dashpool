@@ -52,6 +52,22 @@ func (t *TransactionMerkleTree) SetTxIdHexCoinBase(txIdCoinBaseHex string) error
 	return nil
 }
 
+func (t *TransactionMerkleTree) SetMerkleBranchWithoutCoinBase(merkleBranch []bigint.Uint256) {
+	t.merkleBranchWithoutCoinBase = merkleBranch
+}
+
+func (t *TransactionMerkleTree) SetMerkleBranchHexWithoutCoinBase(merkleBranchHex []string) error {
+	for _, hashHex := range merkleBranchHex {
+		var hash bigint.Uint256
+		err := hash.SetHex(hashHex)
+		if err != nil {
+			return err
+		}
+		t.merkleBranchWithoutCoinBase = append(t.merkleBranchWithoutCoinBase, hash)
+	}
+	return nil
+}
+
 func (t *TransactionMerkleTree) UpdateMerkleBranch() {
 	if len(t.merkleBranchWithoutCoinBase) != 0 {
 		t.merkleBranchWithoutCoinBase = []bigint.Uint256{}
@@ -152,6 +168,24 @@ func GetMerkleRootHexFromTxIdsWithCoinBase(txIdsHexWithCoinBase []string) (strin
 	tree.UpdateMerkleBranch()
 
 	err = tree.SetTxIdHexCoinBase(txIdsHexWithCoinBase[0])
+	if err != nil {
+		return "", err
+	}
+	merkleRootHex, err := tree.CalcMerkleRootHex()
+	if err != nil {
+		return "", err
+	}
+	return merkleRootHex, nil
+}
+
+func GetMerkleRootHexFromCoinBaseAndMerkleBranch(txIdCoinBaseHex string, merkleBranchHex []string) (string, error) {
+	var tree TransactionMerkleTree
+
+	err := tree.SetTxIdHexCoinBase(txIdCoinBaseHex)
+	if err != nil {
+		return "", err
+	}
+	err = tree.SetMerkleBranchHexWithoutCoinBase(merkleBranchHex)
 	if err != nil {
 		return "", err
 	}

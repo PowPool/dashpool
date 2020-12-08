@@ -1,13 +1,13 @@
 package proxy
 
 import (
-	"math/big"
-	"strconv"
-	"strings"
-
+	"bytes"
+	"encoding/hex"
+	"github.com/MiningPool0826/dashpool/dashcoin"
 	. "github.com/MiningPool0826/dashpool/util"
 	"github.com/ethereum/ethash"
-	"github.com/ethereum/go-ethereum/common"
+	"io"
+	"math/big"
 )
 
 var hasher = ethash.New()
@@ -140,4 +140,44 @@ func (s *ProxyServer) processShare(login, id, eNonce1, ip string, shareDiff int6
 		}
 	}
 	return false, true
+}
+
+func X11HashVerify(block *Block) bool {
+	bytes1, err := hex.DecodeString(block.coinBase1)
+	if err != nil {
+		Error.Println("X11HashVerify: hex decode coinBase1 error")
+		return false
+	}
+	bytes2, err := hex.DecodeString(block.extraNonce1)
+	if err != nil {
+		Error.Println("X11HashVerify: hex decode extraNonce1 error")
+		return false
+	}
+	bytes3, err := hex.DecodeString(block.extraNonce2)
+	if err != nil {
+		Error.Println("X11HashVerify: hex decode extraNonce2 error")
+		return false
+	}
+	bytes4, err := hex.DecodeString(block.coinBase2)
+	if err != nil {
+		Error.Println("X11HashVerify: hex decode coinBase2 error")
+		return false
+	}
+
+	bytesCoinBaseTx := append(append(append(append([]byte{}, bytes1...), bytes2...), bytes3...), bytes4...)
+	bytesBuf := bytes.NewBuffer(bytesCoinBaseTx)
+	bufReader := io.Reader(bytesBuf)
+	var cbTrx dashcoin.DashTransaction
+	err = cbTrx.UnPack(bufReader)
+	if err != nil {
+		Error.Println("X11HashVerify: unpack coinBase transaction error")
+		return false
+	}
+
+	cbTrxId, err := cbTrx.CalcTrxId()
+	if err != nil {
+		Error.Println("X11HashVerify: CalcTrxId error")
+		return false
+	}
+
 }

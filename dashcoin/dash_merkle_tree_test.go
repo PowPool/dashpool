@@ -64,3 +64,16 @@ func TestGetMerkleRootHexFromTxIdsWithCoinBase(t *testing.T) {
 	merkleRoot, _ := GetMerkleRootHexFromTxIdsWithCoinBase(txIdsHexWithCoinBase)
 	fmt.Println("merkleRoot:", merkleRoot)
 }
+
+func TestGetMerkleRootHexFromCoinBaseAndMerkleBranch(t *testing.T) {
+	//"6960d019913a8958642415b92836304a2f39275df60bfbc30e65020489ac2b64"
+	merkleBranchHex := []string{
+		"aec5799ca150e2e25efd3e78aa649701f8a02444f50a75ba4938602f127f4700",
+		"7fc898f6166ce4bedc49bd6514d64940b9c28bc0647ed5b62e4a22c58da4ab1a",
+		"c73d7fd5cea0ec81e26b215344cde90759c715b867591a0406cb882d0584603d",
+		"fbd50735e27899aa17f59d38c1e5fa1cde431848e7a76490c5524b065a082b3a",
+		"95575f8562b810290d0f637fbee1fa52e8d829aae8862680d339fa99b40331b5"}
+	coinBaseHex := "a9c02cb69f753ef724110f7a0b95724492ded6ac1333f22424de0b8eafdb35a2"
+	merkleRoot, _ := GetMerkleRootHexFromCoinBaseAndMerkleBranch(coinBaseHex, merkleBranchHex)
+	fmt.Println("merkleRoot:", merkleRoot)
+}
