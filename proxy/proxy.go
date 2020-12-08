@@ -25,7 +25,7 @@ type ProxyServer struct {
 	upstream                 int32
 	upstreams                []*rpc.RPCClient
 	backend                  *storage.RedisClient
-	diff                     string
+	target                   string
 	policy                   *policy.PolicyServer
 	hashrateExpiration       time.Duration
 	failsCount               int64
@@ -47,13 +47,17 @@ type Session struct {
 	id    string
 
 	//lastShareTime int64
-	diff string
+	target string
 
-	diffNextJob   string
+	targetNextJob string
 	shareCountInv int64
 
 	// Session tag
 	tag uint16
+	// Session id
+	sid string
+	// authorized
+	isAuth bool
 }
 
 func NewProxy(cfg *Config, backend *storage.RedisClient) *ProxyServer {
@@ -63,7 +67,7 @@ func NewProxy(cfg *Config, backend *storage.RedisClient) *ProxyServer {
 	policyServer := policy.Start(&cfg.Proxy.Policy, backend)
 
 	proxy := &ProxyServer{config: cfg, backend: backend, policy: policyServer}
-	proxy.diff = GetTargetHex(cfg.Proxy.Difficulty)
+	proxy.target = GetTargetHex(cfg.Proxy.Difficulty)
 
 	proxy.upstreams = make([]*rpc.RPCClient, len(cfg.Upstream))
 	for i, v := range cfg.Upstream {
@@ -223,16 +227,16 @@ func (s *ProxyServer) UpdateAllSessionDiff() {
 	for k, _ := range s.sessions {
 		if k.shareCountInv > s.config.Proxy.DiffAdjust.ExpectShareCount*2 {
 			// difficulty up
-			diff := TargetHexToDiff(k.diff).Int64()
+			diff := TargetHexToDiff(k.target).Int64()
 			diff = int64(float64(diff) * 1.2)
-			k.diffNextJob = GetTargetHex(diff)
-			Info.Printf("Address: [%s], Name: : [%s], Diff From [%s] Up to [%s]", k.login, k.id, k.diff, k.diffNextJob)
+			k.targetNextJob = GetTargetHex(diff)
+			Info.Printf("Address: [%s], Name: : [%s], Target From [%s] Up to [%s]", k.login, k.id, k.target, k.targetNextJob)
 		} else if k.shareCountInv < s.config.Proxy.DiffAdjust.ExpectShareCount/2 {
 			// difficulty down
-			diff := TargetHexToDiff(k.diff).Int64()
+			diff := TargetHexToDiff(k.target).Int64()
 			diff = int64(float64(diff) * 0.8)
-			k.diff = GetTargetHex(diff)
-			Info.Printf("Address: [%s], Name: : [%s], Diff From [%s] Down to [%s]", k.login, k.id, k.diff, k.diffNextJob)
+			k.target = GetTargetHex(diff)
+			Info.Printf("Address: [%s], Name: : [%s], Target From [%s] Down to [%s]", k.login, k.id, k.target, k.targetNextJob)
 		}
 	}
 }
@@ -296,13 +300,13 @@ func (cs *Session) handleMessage(s *ProxyServer, r *http.Request, req *JSONRpcRe
 
 	// Handle RPC methods
 	switch req.Method {
-	case "eth_getWork":
-		reply, errReply := s.handleGetWorkRPC(cs)
-		if errReply != nil {
-			_ = cs.sendError(req.Id, errReply)
-			break
-		}
-		_ = cs.sendResult(req.Id, &reply)
+	//case "eth_getWork":
+	//	reply, errReply := s.handleGetWorkRPC(cs)
+	//	if errReply != nil {
+	//		_ = cs.sendError(req.Id, errReply)
+	//		break
+	//	}
+	//	_ = cs.sendResult(req.Id, &reply)
 	case "eth_submitWork":
 		if req.Params != nil {
 			var params []string
@@ -323,9 +327,9 @@ func (cs *Session) handleMessage(s *ProxyServer, r *http.Request, req *JSONRpcRe
 			errReply := &ErrorReply{Code: -1, Message: "Malformed request"}
 			_ = cs.sendError(req.Id, errReply)
 		}
-	case "eth_getBlockByNumber":
-		reply := s.handleGetBlockByNumberRPC()
-		_ = cs.sendResult(req.Id, reply)
+	//case "eth_getBlockByNumber":
+	//	reply := s.handleGetBlockByNumberRPC()
+	//	_ = cs.sendResult(req.Id, reply)
 	case "eth_submitHashrate":
 		_ = cs.sendResult(req.Id, true)
 	default:

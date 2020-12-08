@@ -2,11 +2,14 @@ package proxy
 
 import (
 	"bufio"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"github.com/MiningPool0826/dashpool/dashcoin"
+	"github.com/mutalisk999/bitcoin-lib/src/bigint"
 	"io"
 	"net"
-	"strings"
 	"time"
 
 	. "github.com/MiningPool0826/dashpool/util"
@@ -55,7 +58,7 @@ func (s *ProxyServer) ListenTCP() {
 		}
 
 		tag = <-accept
-		cs := &Session{conn: conn, ip: ip, shareCountInv: 0, tag: uint16(tag)}
+		cs := &Session{conn: conn, ip: ip, shareCountInv: 0, tag: uint16(tag), isAuth: false}
 
 		go func(cs *Session, tag int) {
 			err = s.handleTCPClient(cs)
@@ -99,9 +102,6 @@ func (s *ProxyServer) handleTCPClient(cs *Session) error {
 				return err
 			}
 
-			// trim space character for worker
-			req.Worker = strings.Trim(req.Worker, " \t\r\n")
-
 			s.setDeadline(cs.conn)
 			err = cs.handleTCPMessage(s, &req)
 			if err != nil {
@@ -116,38 +116,59 @@ func (s *ProxyServer) handleTCPClient(cs *Session) error {
 func (cs *Session) handleTCPMessage(s *ProxyServer, req *StratumReq) error {
 	// Handle RPC methods
 	switch req.Method {
-	case "eth_submitLogin":
+
+	case "mining.subscribe":
 		var params []string
 		err := json.Unmarshal(req.Params, &params)
 		if err != nil {
-			Error.Println("Malformed stratum request (eth_submitLogin) params from", cs.ip)
+			Error.Println("Malformed stratum request (mining.subscribe) params from", cs.ip)
 			return err
 		}
-		reply, errReply := s.handleLoginRPC(cs, params, req.Worker)
+		if len(params) > 0 {
+			Info.Println("mining.subscribe:", params[0])
+		}
+		reply, errReply := s.handleSubscribeRPC(cs)
 		if errReply != nil {
 			return cs.sendTCPError(req.Id, errReply)
 		}
 		return cs.sendTCPResult(req.Id, reply)
-	case "eth_getWork":
-		reply, errReply := s.handleGetWorkRPC(cs)
-		if errReply != nil {
-			return cs.sendTCPError(req.Id, errReply)
-		}
-		return cs.sendTCPResult(req.Id, &reply)
-	case "eth_submitWork":
+
+	case "mining.authorize":
 		var params []string
 		err := json.Unmarshal(req.Params, &params)
 		if err != nil {
-			Error.Println("Malformed stratum request (eth_submitWork) params from", cs.ip)
+			Error.Println("Malformed stratum request (mining.authorize) params from", cs.ip)
 			return err
 		}
-		reply, errReply := s.handleTCPSubmitRPC(cs, req.Worker, params)
+		reply, errReply := s.handleAuthorizeRPC(cs, params)
 		if errReply != nil {
 			return cs.sendTCPError(req.Id, errReply)
 		}
-		return cs.sendTCPResult(req.Id, &reply)
-	case "eth_submitHashrate":
-		return cs.sendTCPResult(req.Id, true)
+
+		//set difficulty
+		go func(s *ProxyServer, cs *Session) {
+			err := cs.setDifficulty()
+			if err != nil {
+				Error.Printf("set difficulty error to %v@%v: %v", cs.login, cs.ip, err)
+				s.removeSession(cs)
+			}
+		}(s, cs)
+
+		return cs.sendTCPResult(req.Id, reply)
+
+	//case "eth_submitWork":
+	//	var params []string
+	//	err := json.Unmarshal(req.Params, &params)
+	//	if err != nil {
+	//		Error.Println("Malformed stratum request (eth_submitWork) params from", cs.ip)
+	//		return err
+	//	}
+	//	reply, errReply := s.handleTCPSubmitRPC(cs, req.Worker, params)
+	//	if errReply != nil {
+	//		return cs.sendTCPError(req.Id, errReply)
+	//	}
+	//	return cs.sendTCPResult(req.Id, &reply)
+
 	default:
 		errReply := s.handleUnknownRPC(cs, req.Method)
 		return cs.sendTCPError(req.Id, errReply)
@@ -162,11 +183,25 @@ func (cs *Session) sendTCPResult(id json.RawMessage, result interface{}) error {
 	return cs.enc.Encode(&message)
 }
 
-func (cs *Session) pushNewJob(result interface{}) error {
+func (cs *Session) setDifficulty() error {
 	cs.Lock()
 	defer cs.Unlock()
-	// FIXME: Temporarily add ID for Claymore compliance
-	message := JSONPushMessage{Version: "2.0", Result: result, Id: 0}
+	genesisWork, err := dashcoin.GetGenesisTargetWork()
+	if err != nil {
+		return err
+	}
+
+	diff := TargetHexToDiff(cs.targetNextJob).Int64()
+	setDiff := float64(diff) / genesisWork
+
+	message := JSONPushMessage{Id: nil, Method: "mining.set_difficulty", Params: []interface{}{setDiff}}
+	return cs.enc.Encode(&message)
+}
+
+func (cs *Session) pushNewJob(params []interface{}) error {
+	cs.Lock()
+	defer cs.Unlock()
+	message := JSONPushMessage{Id: nil, Method: "mining.notify", Params: params}
 	return cs.enc.Encode(&message)
 }
 
@@ -200,10 +235,28 @@ func (s *ProxyServer) removeSession(cs *Session) {
 
 func (s *ProxyServer) broadcastNewJobs() {
 	t := s.currentBlockTemplate()
-	if t == nil || len(t.Header) == 0 || s.isSick() {
+	if t == nil || len(t.PrevHash) == 0 || s.isSick() {
 		return
 	}
-	reply := []string{t.Header, t.Seed, s.diff}
+	var params []interface{}
+
+	// reverse prev hash in bytes
+	var prevHash bigint.Uint256
+	err := prevHash.SetHex(t.PrevHash)
+	if err != nil {
+		return
+	}
+	prevHashHex := hex.EncodeToString(prevHash.GetData())
+
+	tpl, ok := t.BlockTplMap[t.lastBlkTplId]
+	if !ok {
+		return
+	}
+
+	params = append(append(append(append(append(params, t.lastBlkTplId), prevHashHex), tpl.CoinBase1), tpl.CoinBase2), tpl.MerkleBranch)
+	params = append(append(append(params, fmt.Sprintf("%08x", t.Version)),
+		fmt.Sprintf("%08x", t.NBits)), fmt.Sprintf("%08x", tpl.BlkTplTime))
+	params = append(params, t.newBlkTpl)
 
 	s.sessionsMu.RLock()
 	defer s.sessionsMu.RUnlock()
@@ -216,16 +269,15 @@ func (s *ProxyServer) broadcastNewJobs() {
 	n := 0
 
 	for m := range s.sessions {
+		if !m.isAuth {
+			continue
+		}
+
 		n++
 		bcast <- n
 
-		go func(cs *Session) {
-			reply[2] = cs.diffNextJob
-
-			// update session diff to diffNextJob
-			cs.diff = cs.diffNextJob
-
-			err := cs.pushNewJob(&reply)
+		go func(s *ProxyServer, cs *Session) {
+			err := cs.pushNewJob(params)
 			<-bcast
 			if err != nil {
 				Error.Printf("Job transmit error to %v@%v: %v", cs.login, cs.ip, err)
@@ -233,7 +285,7 @@ func (s *ProxyServer) broadcastNewJobs() {
 			} else {
 				s.setDeadline(cs.conn)
 			}
-		}(m)
+		}(s, m)
 	}
 	Info.Printf("Jobs broadcast finished %s", time.Since(start))
 }

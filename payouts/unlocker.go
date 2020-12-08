@@ -261,13 +261,15 @@ func (u *BlockUnlocker) unlockPendingBlocks() {
 		Error.Printf("Unable to get current blockchain height from node: %v", err)
 		return
 	}
-	currentHeight, err := strconv.ParseInt(strings.Replace(current.Number, "0x", "", -1), 16, 64)
-	if err != nil {
-		u.halt = true
-		u.lastFail = err
-		Error.Printf("Can't parse pending block number: %v", err)
-		return
-	}
+	//currentHeight, err := strconv.ParseInt(strings.Replace(current.Number, "0x", "", -1), 16, 64)
+	//if err != nil {
+	//	u.halt = true
+	//	u.lastFail = err
+	//	Error.Printf("Can't parse pending block number: %v", err)
+	//	return
+	//}
+
+	currentHeight := int64(current.Height)
 
 	candidates, err := u.backend.GetCandidates(currentHeight - u.config.ImmatureDepth)
 	if err != nil {
@@ -359,13 +361,15 @@ func (u *BlockUnlocker) unlockAndCreditMiners() {
 		Error.Printf("Unable to get current blockchain height from node: %v", err)
 		return
 	}
-	currentHeight, err := strconv.ParseInt(strings.Replace(current.Number, "0x", "", -1), 16, 64)
-	if err != nil {
-		u.halt = true
-		u.lastFail = err
-		Error.Printf("Can't parse pending block number: %v", err)
-		return
-	}
+	//currentHeight, err := strconv.ParseInt(strings.Replace(current.Number, "0x", "", -1), 16, 64)
+	//if err != nil {
+	//	u.halt = true
+	//	u.lastFail = err
+	//	Error.Printf("Can't parse pending block number: %v", err)
+	//	return
+	//}
+
+	currentHeight := int64(current.Height)
 
 	immature, err := u.backend.GetImmatureBlocks(currentHeight - u.config.Depth)
 	if err != nil {

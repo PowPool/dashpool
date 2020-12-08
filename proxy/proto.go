@@ -10,15 +10,13 @@ type JSONRpcReq struct {
 
 type StratumReq struct {
 	JSONRpcReq
-	Worker string `json:"worker"`
+	//Worker string `json:"worker"`
 }
 
-// Stratum
 type JSONPushMessage struct {
-	// FIXME: Temporarily add ID for Claymore compliance
-	Id      int64       `json:"id"`
-	Version string      `json:"jsonrpc"`
-	Result  interface{} `json:"result"`
+	Id     json.RawMessage `json:"id"`
+	Method string          `json:"method"`
+	Params interface{}     `json:"params"`
 }
 
 type JSONRpcResp struct {

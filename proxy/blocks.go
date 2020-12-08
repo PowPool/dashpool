@@ -29,15 +29,17 @@ type BlockTemplate struct {
 
 type BlockTemplatesCollection struct {
 	sync.RWMutex
-	Version     uint32
-	Height      uint32
-	PrevHash    string
-	NBits       uint32
-	Target      string
-	Difficulty  *big.Int
-	BlockTplMap map[string]BlockTemplate
-	TxDetailMap map[string]string
-	updateTime  int64
+	Version      uint32
+	Height       uint32
+	PrevHash     string
+	NBits        uint32
+	Target       string
+	Difficulty   *big.Int
+	BlockTplMap  map[string]BlockTemplate
+	TxDetailMap  map[string]string
+	updateTime   int64
+	newBlkTpl    bool
+	lastBlkTplId string
 }
 
 type Block struct {
@@ -86,6 +88,7 @@ func (s *ProxyServer) fetchBlockTemplate() {
 		newTplCollection.BlockTplMap = make(map[string]BlockTemplate)
 		newTplCollection.TxDetailMap = make(map[string]string)
 		newTplCollection.updateTime = MakeTimestamp() / 1000
+		newTplCollection.newBlkTpl = true
 	} else {
 		newTplCollection.Version = t.Version
 		newTplCollection.Height = t.Height
@@ -96,6 +99,7 @@ func (s *ProxyServer) fetchBlockTemplate() {
 		newTplCollection.BlockTplMap = t.BlockTplMap
 		newTplCollection.TxDetailMap = t.TxDetailMap
 		newTplCollection.updateTime = MakeTimestamp() / 1000
+		newTplCollection.newBlkTpl = false
 	}
 
 	var newTpl BlockTemplate
@@ -120,6 +124,7 @@ func (s *ProxyServer) fetchBlockTemplate() {
 	newTpl.CoinBase2 = hex.EncodeToString(coinBaseTx.CoinBaseTx2)
 	newTpl.BlkTplId = hex.EncodeToString(utility.Sha256(coinBaseTx.CoinBaseTx1))[0:16]
 
+	newTplCollection.lastBlkTplId = newTpl.BlkTplId
 	newTplCollection.BlockTplMap[newTpl.BlkTplId] = newTpl
 	for _, tx := range blkTplReply.Transactions {
 		newTplCollection.TxDetailMap[tx.Hash] = tx.Data

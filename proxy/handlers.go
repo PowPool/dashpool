@@ -1,10 +1,15 @@
 package proxy
 
 import (
+	"encoding/hex"
+	"fmt"
+	"github.com/MiningPool0826/dashpool/dashcoin"
+	"github.com/mutalisk999/bitcoin-lib/src/utility"
 	"regexp"
+	"strconv"
 	"strings"
 
-	"github.com/MiningPool0826/dashpool/rpc"
+	//"github.com/MiningPool0826/dashpool/rpc"
 	. "github.com/MiningPool0826/dashpool/util"
 )
 
@@ -14,35 +19,59 @@ var hashPattern = regexp.MustCompile("^0x[0-9a-f]{64}$")
 var workerPattern = regexp.MustCompile("^[0-9a-zA-Z-_\x2e]{1,64}$")
 
 // Stratum
-func (s *ProxyServer) handleLoginRPC(cs *Session, params []string, id string) (bool, *ErrorReply) {
+func (s *ProxyServer) handleSubscribeRPC(cs *Session) (interface{}, *ErrorReply) {
+	cs.target = s.target
+	// at first time, target is the same with targetNextJob
+	cs.targetNextJob = s.target
+	s.registerSession(cs)
+	Info.Printf("Stratum miner connected from %v", cs.ip)
+
+	cs.sid = hex.EncodeToString(utility.Sha256(
+		[]byte(strings.Join([]string{cs.ip, strconv.Itoa(int(s.config.Id)), strconv.Itoa(int(cs.tag))}, ","))))[0:32]
+
+	extraNonce1 := fmt.Sprintf("%08x", uint32(s.config.Id)<<16|uint32(cs.tag))
+
+	setDiff := []string{"mining.set_difficulty", cs.sid}
+	notify := []string{"mining.notify", cs.sid}
+	l := []interface{}{setDiff, notify}
+	reply := []interface{}{l, extraNonce1, dashcoin.EXTRANONCE2_SIZE}
+
+	return reply, nil
+}
+
+func (s *ProxyServer) handleAuthorizeRPC(cs *Session, params []string) (bool, *ErrorReply) {
 	if len(params) == 0 {
 		return false, &ErrorReply{Code: -1, Message: "Invalid params"}
 	}
 
-	login := strings.ToLower(params[0])
-	if !IsValidHexAddress(login) {
-		return false, &ErrorReply{Code: -1, Message: "Invalid login"}
+	l := strings.Split(strings.Trim(params[0], " \t\r\n"), ".")
+	if !IsValidDashAddress(l[0]) {
+		return false, &ErrorReply{Code: -1, Message: "Invalid authorize"}
 	}
-	if !s.policy.ApplyLoginPolicy(login, cs.ip) {
+	if !s.policy.ApplyLoginPolicy(l[0], cs.ip) {
 		return false, &ErrorReply{Code: -1, Message: "You are blacklisted"}
 	}
-	cs.login = login
+
+	id := "default"
+	if len(l) > 1 && workerPattern.MatchString(l[1]) {
+		id = l[1]
+	}
+
+	cs.login = l[0]
 	cs.id = id
-	cs.diff = s.diff
-	// at first time, diff is the same with diffNextJob
-	cs.diffNextJob = s.diff
-	s.registerSession(cs)
-	Info.Printf("Stratum miner connected %v.%v@%v", login, cs.id, cs.ip)
+	cs.isAuth = true
+
+	Info.Printf("Stratum miner connected %v.%v@%v", cs.login, cs.id, cs.ip)
 	return true, nil
 }
 
-func (s *ProxyServer) handleGetWorkRPC(cs *Session) ([]string, *ErrorReply) {
-	t := s.currentBlockTemplate()
-	if t == nil || len(t.Header) == 0 || s.isSick() {
-		return nil, &ErrorReply{Code: 0, Message: "Work not ready"}
-	}
-	return []string{t.Header, t.Seed, cs.diff}, nil
-}
+//func (s *ProxyServer) handleGetWorkRPC(cs *Session) ([]string, *ErrorReply) {
+//	t := s.currentBlockTemplate()
+//	if t == nil || len(t.Header) == 0 || s.isSick() {
+//		return nil, &ErrorReply{Code: 0, Message: "Work not ready"}
+//	}
+//	return []string{t.Header, t.Seed, cs.diff}, nil
+//}
 
 // Stratum
 func (s *ProxyServer) handleTCPSubmitRPC(cs *Session, id string, params []string) (bool, *ErrorReply) {
@@ -76,7 +105,7 @@ func (s *ProxyServer) handleSubmitRPC(cs *Session, login, id string, params []st
 		return false, &ErrorReply{Code: -1, Message: "Malformed PoW result"}
 	}
 	t := s.currentBlockTemplate()
-	exist, validShare := s.processShare(login, id, cs.ip, TargetHexToDiff(cs.diff).Int64(), t, params)
+	exist, validShare := s.processShare(login, id, cs.ip, TargetHexToDiff(cs.target).Int64(), t, params)
 	ok := s.policy.ApplySharePolicy(cs.ip, !exist && validShare)
 
 	if exist {
@@ -104,14 +133,14 @@ func (s *ProxyServer) handleSubmitRPC(cs *Session, login, id string, params []st
 	return true, nil
 }
 
-func (s *ProxyServer) handleGetBlockByNumberRPC() *rpc.GetBlockReplyPart {
-	t := s.currentBlockTemplate()
-	var reply *rpc.GetBlockReplyPart
-	if t != nil {
-		reply = t.GetPendingBlockCache
-	}
-	return reply
-}
+//func (s *ProxyServer) handleGetBlockByNumberRPC() *rpc.GetBlockReplyPart {
+//	t := s.currentBlockTemplate()
+//	var reply *rpc.GetBlockReplyPart
+//	if t != nil {
+//		reply = t.GetPendingBlockCache
+//	}
+//	return reply
+//}
 
 func (s *ProxyServer) handleUnknownRPC(cs *Session, m string) *ErrorReply {
 	Error.Printf("Unknown request method %s from %s", m, cs.ip)
