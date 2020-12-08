@@ -9,3 +9,6 @@ testnet.json
 *.log
 dashpool
 dashpool.exe
+
+.idea
+
