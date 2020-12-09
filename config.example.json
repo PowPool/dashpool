@@ -84,7 +84,7 @@
 	},
 
 	"upstreamCheckInterval": "5s",
-	"upstreamCoinBaseEncrypted": "bg2Z2F+OA6LTR5VQjsOiLOH2YqSiFbETBQWlZ25nt51UsZrrRqWSvWJT4yX6Oz5r",
+	"upstreamCoinBaseEncrypted": "X/anuih86ocszNESCwJw+KCDe1wce+1Dk7Q4zCBE9a/lnCwydhF7gSkmHvcdwPjk",
 	"upstream": [
 		{
 			"name": "main",
@@ -102,7 +102,7 @@
 		"endpoint": "192.168.1.124:6379",
 		"poolSize": 10,
 		"database": 0,
-		"passwordEncrypted": "nuaXMECKl3fLIRwzJyKXHA=="
+		"passwordEncrypted": "m0lxCSrfYVhmOhZcOhICrw=="
 	},
 
 	"unlocker": {

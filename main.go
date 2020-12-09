@@ -7,14 +7,11 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"math/rand"
 	"net"
 	"os"
 	"path/filepath"
 	"runtime"
-	"strings"
 	"syscall"
-	"time"
 	//"github.com/yvasiyarov/gorelic"
 
 	"github.com/MiningPool0826/dashpool/api"
@@ -104,10 +101,10 @@ func decryptPoolConfigure(cfg *proxy.Config, passBytes []byte) error {
 	if err != nil {
 		return err
 	}
-	cfg.UpstreamCoinBase = strings.ToLower(string(b))
+	cfg.UpstreamCoinBase = string(b)
 	// check address
-	if !IsValidHexAddress(cfg.UpstreamCoinBase) {
-		return errors.New("decryptPoolConfigure: IsValidHexAddress")
+	if !IsValidDashAddress(cfg.UpstreamCoinBase) {
+		return errors.New("decryptPoolConfigure: IsValidDashAddress")
 	}
 
 	b, err = Ae64Decode(cfg.Redis.PasswordEncrypted, passBytes)
@@ -155,7 +152,7 @@ func initPeerName(cfg *proxy.Config) error {
 
 func main() {
 	readConfig(&cfg)
-	rand.Seed(time.Now().UnixNano())
+	//rand.Seed(time.Now().UnixNano())
 
 	// init log file
 	_ = os.Mkdir("logs", os.ModePerm)

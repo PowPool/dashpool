@@ -235,7 +235,6 @@ func ConstructRawDashBlockHex(block *Block, tplJob *BlockTemplateJob, tpl *Block
 			Error.Println("ConstructRawDashBlockHex: trx UnPackFromHex error")
 			return "", err
 		}
-
 		dashBlock.Vtx = append(dashBlock.Vtx, trx)
 	}
 
