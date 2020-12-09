@@ -4,10 +4,13 @@ import (
 	"bytes"
 	"encoding/hex"
 	"github.com/MiningPool0826/dashpool/dashcoin"
+	"github.com/MiningPool0826/dashpool/goX11"
 	. "github.com/MiningPool0826/dashpool/util"
 	"github.com/ethereum/ethash"
+	"github.com/mutalisk999/bitcoin-lib/src/blob"
 	"io"
 	"math/big"
+	"strconv"
 )
 
 var hasher = ethash.New()
@@ -79,7 +82,8 @@ func (s *ProxyServer) processShare(login, id, eNonce1, ip string, shareDiff int6
 		sNonce:       nonceHex,
 	}
 
-	if !hasher.Verify(share) {
+	v, _ := X11HashVerify(&share)
+	if !v {
 		ms := MakeTimestamp()
 		ts := ms / 1000
 
@@ -91,7 +95,8 @@ func (s *ProxyServer) processShare(login, id, eNonce1, ip string, shareDiff int6
 		return false, false
 	}
 
-	if hasher.Verify(block) {
+	v, _ = X11HashVerify(&block)
+	if v {
 		ok, err := s.rpc().SubmitBlock(params)
 		if err != nil {
 			Error.Printf("Block submission failure at height %v for %v: %v", t.Height, t.PrevHash, err)
@@ -142,28 +147,29 @@ func (s *ProxyServer) processShare(login, id, eNonce1, ip string, shareDiff int6
 	return false, true
 }
 
-func X11HashVerify(block *Block) bool {
+func X11HashVerify(block *Block) (bool, string) {
 	bytes1, err := hex.DecodeString(block.coinBase1)
 	if err != nil {
 		Error.Println("X11HashVerify: hex decode coinBase1 error")
-		return false
+		return false, ""
 	}
 	bytes2, err := hex.DecodeString(block.extraNonce1)
 	if err != nil {
 		Error.Println("X11HashVerify: hex decode extraNonce1 error")
-		return false
+		return false, ""
 	}
 	bytes3, err := hex.DecodeString(block.extraNonce2)
 	if err != nil {
 		Error.Println("X11HashVerify: hex decode extraNonce2 error")
-		return false
+		return false, ""
 	}
 	bytes4, err := hex.DecodeString(block.coinBase2)
 	if err != nil {
 		Error.Println("X11HashVerify: hex decode coinBase2 error")
-		return false
+		return false, ""
 	}
 
+	// construct coin base transaction
 	bytesCoinBaseTx := append(append(append(append([]byte{}, bytes1...), bytes2...), bytes3...), bytes4...)
 	bytesBuf := bytes.NewBuffer(bytesCoinBaseTx)
 	bufReader := io.Reader(bytesBuf)
@@ -171,13 +177,69 @@ func X11HashVerify(block *Block) bool {
 	err = cbTrx.UnPack(bufReader)
 	if err != nil {
 		Error.Println("X11HashVerify: unpack coinBase transaction error")
-		return false
+		return false, ""
 	}
 
+	// get coin base transaction id
 	cbTrxId, err := cbTrx.CalcTrxId()
 	if err != nil {
 		Error.Println("X11HashVerify: CalcTrxId error")
-		return false
+		return false, ""
 	}
 
+	// get merkle root hash
+	merkleRootHex, err := dashcoin.GetMerkleRootHexFromCoinBaseAndMerkleBranch(cbTrxId.GetHex(), block.merkleBranch)
+	if err != nil {
+		Error.Println("X11HashVerify: GetMerkleRootHexFromCoinBaseAndMerkleBranch error")
+		return false, ""
+	}
+
+	// construct block header
+	var blockHeader dashcoin.BlockHeader
+	blockHeader.Version = int32(block.nVersion)
+	err = blockHeader.HashPrevBlock.SetHex(block.prevHash)
+	if err != nil {
+		Error.Println("X11HashVerify: HashPrevBlock SetHex error")
+		return false, ""
+	}
+	err = blockHeader.HashMerkleRoot.SetHex(merkleRootHex)
+	if err != nil {
+		Error.Println("X11HashVerify: HashMerkleRoot SetHex error")
+		return false, ""
+	}
+	nTime, err := strconv.ParseUint(block.sTime, 16, 32)
+	if err != nil {
+		Error.Println("X11HashVerify: ParseUint sTime error")
+		return false, ""
+	}
+	blockHeader.Time = uint32(nTime)
+	blockHeader.Bits = block.nBits
+	nNonce, err := strconv.ParseUint(block.sNonce, 16, 32)
+	if err != nil {
+		Error.Println("X11HashVerify: ParseUint sNonce error")
+		return false, ""
+	}
+	blockHeader.Nonce = uint32(nNonce)
+
+	bytesBuf = bytes.NewBuffer([]byte{})
+	bufWriter := io.Writer(bytesBuf)
+	err = blockHeader.Pack(bufWriter)
+	if err != nil {
+		Error.Println("X11HashVerify: blockHeader Pack error")
+		return false, ""
+	}
+
+	// calc block header hash
+	bytesRes := goX11.CalcX11Hash(bytesBuf.Bytes())
+	var res blob.Baseblob
+	res.SetData(bytesRes)
+	resHex := res.GetHex()
+
+	hashDiff := TargetHexToDiff(resHex)
+
+	if hashDiff.Cmp(block.difficulty) > 0 {
+		return true, merkleRootHex
+	} else {
+		return false, ""
+	}
 }

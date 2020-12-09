@@ -318,7 +318,7 @@ func (cs *Session) handleMessage(s *ProxyServer, r *http.Request, req *JSONRpcRe
 				s.policy.ApplyMalformedPolicy(cs.ip)
 				break
 			}
-			reply, errReply := s.handleSubmitRPC(cs, login, vars["id"], params)
+			reply, errReply := s.handleSubmitRPC(cs, params)
 			if errReply != nil {
 				_ = cs.sendError(req.Id, errReply)
 				break
