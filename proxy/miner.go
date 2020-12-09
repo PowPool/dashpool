@@ -6,21 +6,17 @@ import (
 	"github.com/MiningPool0826/dashpool/dashcoin"
 	"github.com/MiningPool0826/dashpool/goX11"
 	. "github.com/MiningPool0826/dashpool/util"
-	"github.com/ethereum/ethash"
 	"github.com/mutalisk999/bitcoin-lib/src/blob"
 	"io"
 	"math/big"
 	"strconv"
 )
 
-var hasher = ethash.New()
-
 func (s *ProxyServer) processShare(login, id, eNonce1, ip string, shareDiff int64, t *BlockTemplate, params []string) (bool, bool) {
 	tplJobId := params[1]
 	eNonce2Hex := params[2]
 	nTimeHex := params[3]
 	nonceHex := params[4]
-	//nonce, _ := strconv.ParseUint(strings.Replace(nonceHex, "0x", "", -1), 16, 64)
 
 	h, ok := t.BlockTplJobMap[tplJobId]
 	if !ok {
@@ -34,25 +30,8 @@ func (s *ProxyServer) processShare(login, id, eNonce1, ip string, shareDiff int6
 		if err != nil {
 			Error.Println("Failed to insert invalid share data into backend:", err)
 		}
-
 		return false, false
 	}
-
-	//share := Block{
-	//	number:      h.height,
-	//	hashNoNonce: common.HexToHash(hashNoNonce),
-	//	difficulty:  big.NewInt(shareDiff),
-	//	nonce:       nonce,
-	//	mixDigest:   common.HexToHash(mixDigest),
-	//}
-	//
-	//block := Block{
-	//	number:      h.height,
-	//	hashNoNonce: common.HexToHash(hashNoNonce),
-	//	difficulty:  h.diff,
-	//	nonce:       nonce,
-	//	mixDigest:   common.HexToHash(mixDigest),
-	//}
 
 	share := Block{
 		difficulty:   big.NewInt(shareDiff),
@@ -82,8 +61,7 @@ func (s *ProxyServer) processShare(login, id, eNonce1, ip string, shareDiff int6
 		sNonce:       nonceHex,
 	}
 
-	v, _ := X11HashVerify(&share)
-	if !v {
+	if !X11HashVerify(&share) {
 		ms := MakeTimestamp()
 		ts := ms / 1000
 
@@ -91,13 +69,16 @@ func (s *ProxyServer) processShare(login, id, eNonce1, ip string, shareDiff int6
 		if err != nil {
 			Error.Println("Failed to insert reject share data into backend:", err)
 		}
-
 		return false, false
 	}
 
-	v, _ = X11HashVerify(&block)
-	if v {
-		ok, err := s.rpc().SubmitBlock(params)
+	if X11HashVerify(&block) {
+		// construct new block
+		rawBlockHex, err := ConstructRawDashBlockHex(&block, &h, t)
+		if err != nil {
+			return false, false
+		}
+		ok, err := s.rpc().SubmitBlock([]string{rawBlockHex})
 		if err != nil {
 			Error.Printf("Block submission failure at height %v for %v: %v", t.Height, t.PrevHash, err)
 			BlockLog.Printf("Block submission failure at height %v for %v: %v", t.Height, t.PrevHash, err)
@@ -147,26 +128,26 @@ func (s *ProxyServer) processShare(login, id, eNonce1, ip string, shareDiff int6
 	return false, true
 }
 
-func X11HashVerify(block *Block) (bool, string) {
+func X11HashVerify(block *Block) bool {
 	bytes1, err := hex.DecodeString(block.coinBase1)
 	if err != nil {
 		Error.Println("X11HashVerify: hex decode coinBase1 error")
-		return false, ""
+		return false
 	}
 	bytes2, err := hex.DecodeString(block.extraNonce1)
 	if err != nil {
 		Error.Println("X11HashVerify: hex decode extraNonce1 error")
-		return false, ""
+		return false
 	}
 	bytes3, err := hex.DecodeString(block.extraNonce2)
 	if err != nil {
 		Error.Println("X11HashVerify: hex decode extraNonce2 error")
-		return false, ""
+		return false
 	}
 	bytes4, err := hex.DecodeString(block.coinBase2)
 	if err != nil {
 		Error.Println("X11HashVerify: hex decode coinBase2 error")
-		return false, ""
+		return false
 	}
 
 	// construct coin base transaction
@@ -177,21 +158,21 @@ func X11HashVerify(block *Block) (bool, string) {
 	err = cbTrx.UnPack(bufReader)
 	if err != nil {
 		Error.Println("X11HashVerify: unpack coinBase transaction error")
-		return false, ""
+		return false
 	}
 
 	// get coin base transaction id
 	cbTrxId, err := cbTrx.CalcTrxId()
 	if err != nil {
 		Error.Println("X11HashVerify: CalcTrxId error")
-		return false, ""
+		return false
 	}
 
 	// get merkle root hash
 	merkleRootHex, err := dashcoin.GetMerkleRootHexFromCoinBaseAndMerkleBranch(cbTrxId.GetHex(), block.merkleBranch)
 	if err != nil {
 		Error.Println("X11HashVerify: GetMerkleRootHexFromCoinBaseAndMerkleBranch error")
-		return false, ""
+		return false
 	}
 
 	// construct block header
@@ -200,24 +181,24 @@ func X11HashVerify(block *Block) (bool, string) {
 	err = blockHeader.HashPrevBlock.SetHex(block.prevHash)
 	if err != nil {
 		Error.Println("X11HashVerify: HashPrevBlock SetHex error")
-		return false, ""
+		return false
 	}
 	err = blockHeader.HashMerkleRoot.SetHex(merkleRootHex)
 	if err != nil {
 		Error.Println("X11HashVerify: HashMerkleRoot SetHex error")
-		return false, ""
+		return false
 	}
 	nTime, err := strconv.ParseUint(block.sTime, 16, 32)
 	if err != nil {
 		Error.Println("X11HashVerify: ParseUint sTime error")
-		return false, ""
+		return false
 	}
 	blockHeader.Time = uint32(nTime)
 	blockHeader.Bits = block.nBits
 	nNonce, err := strconv.ParseUint(block.sNonce, 16, 32)
 	if err != nil {
 		Error.Println("X11HashVerify: ParseUint sNonce error")
-		return false, ""
+		return false
 	}
 	blockHeader.Nonce = uint32(nNonce)
 
@@ -226,7 +207,7 @@ func X11HashVerify(block *Block) (bool, string) {
 	err = blockHeader.Pack(bufWriter)
 	if err != nil {
 		Error.Println("X11HashVerify: blockHeader Pack error")
-		return false, ""
+		return false
 	}
 
 	// calc block header hash
@@ -238,8 +219,8 @@ func X11HashVerify(block *Block) (bool, string) {
 	hashDiff := TargetHexToDiff(resHex)
 
 	if hashDiff.Cmp(block.difficulty) > 0 {
-		return true, merkleRootHex
+		return true
 	} else {
-		return false, ""
+		return false
 	}
 }
