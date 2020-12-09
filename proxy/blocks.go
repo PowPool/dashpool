@@ -74,10 +74,15 @@ func (s *ProxyServer) fetchBlockTemplate() {
 
 	var newTpl BlockTemplate
 	if t == nil || t.PrevHash != blkTplReply.PreviousBlockHash {
+		nBits, err := strconv.ParseInt(blkTplReply.Bits, 16, 32)
+		if err != nil {
+			Error.Printf("Error while ParseInt nBits on %s: %s", rpcClient.Name, err)
+			return
+		}
 		newTpl.Version = blkTplReply.Version
 		newTpl.Height = blkTplReply.Height
 		newTpl.PrevHash = blkTplReply.PreviousBlockHash
-		newTpl.NBits = blkTplReply.Bits
+		newTpl.NBits = uint32(nBits)
 		newTpl.Target = blkTplReply.Target
 		newTpl.Difficulty = TargetHexToDiff(blkTplReply.Target)
 		newTpl.BlockTplJobMap = make(map[string]BlockTemplateJob)

@@ -13,9 +13,8 @@ import (
 	. "github.com/MiningPool0826/dashpool/util"
 )
 
-// Allow only lowercase hexadecimal with 0x prefix
-var noncePattern = regexp.MustCompile("^0x[0-9a-f]{8}$")
-var hashPattern = regexp.MustCompile("^0x[0-9a-f]{64}$")
+var noncePattern = regexp.MustCompile("^[0-9a-f]{8}$")
+var hashPattern = regexp.MustCompile("^[0-9a-f]{64}$")
 var workerPattern = regexp.MustCompile("^[0-9a-zA-Z-_\x2e]{1,64}$")
 
 // Stratum

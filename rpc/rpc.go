@@ -56,7 +56,7 @@ type GetBlockTemplateReplyPart struct {
 	CoinBaseAux       CoinBaseAux           `json:"coinbaseaux"`
 	CoinBaseValue     int64                 `json:"coinbasevalue"`
 	CurTime           uint32                `json:"curtime"`
-	Bits              uint32                `json:"bits"`
+	Bits              string                `json:"bits"`
 	Target            string                `json:"target"`
 	Height            uint32                `json:"height"`
 	CoinbasePayload   string                `json:"coinbase_payload"`
