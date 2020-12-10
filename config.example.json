@@ -31,7 +31,7 @@
 		"limitBodySize": 256,
 		"behindReverseProxy": false,
 		"blockRefreshInterval": "200ms",
-		"blockTemplateCollectInterval": "10s",
+		"blockTemplateInterval": "10s",
 		"stateUpdateInterval": "3s",
 		"difficulty": 90000000,
 		"hashrateExpiration": "3h",

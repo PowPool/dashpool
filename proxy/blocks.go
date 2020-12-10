@@ -62,7 +62,7 @@ func (s *ProxyServer) fetchBlockTemplate() {
 	}
 
 	// No need to update, we have had fresh job
-	blkTplIntv := MustParseDuration(s.config.Proxy.BlockTemplateCollectInterval)
+	blkTplIntv := MustParseDuration(s.config.Proxy.BlockTemplateInterval)
 	t := s.currentBlockTemplate()
 	if t != nil && t.PrevHash == prevBlockHash && (MakeTimestamp()/1000-t.updateTime < int64(blkTplIntv.Seconds())) {
 		return

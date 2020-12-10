@@ -36,13 +36,13 @@ type Config struct {
 }
 
 type Proxy struct {
-	Enabled                      bool   `json:"enabled"`
-	Listen                       string `json:"listen"`
-	LimitHeadersSize             int    `json:"limitHeadersSize"`
-	LimitBodySize                int64  `json:"limitBodySize"`
-	BehindReverseProxy           bool   `json:"behindReverseProxy"`
-	BlockRefreshInterval         string `json:"blockRefreshInterval"`
-	BlockTemplateCollectInterval string `json:"blockTemplateCollectInterval"`
+	Enabled               bool   `json:"enabled"`
+	Listen                string `json:"listen"`
+	LimitHeadersSize      int    `json:"limitHeadersSize"`
+	LimitBodySize         int64  `json:"limitBodySize"`
+	BehindReverseProxy    bool   `json:"behindReverseProxy"`
+	BlockRefreshInterval  string `json:"blockRefreshInterval"`
+	BlockTemplateInterval string `json:"blockTemplateInterval"`
 
 	Difficulty          int64  `json:"difficulty"`
 	StateUpdateInterval string `json:"stateUpdateInterval"`
