@@ -2,6 +2,10 @@
 	"threads": 4,
 	"coin": "dash",
 
+	"log": {
+		"logSetLevel": 10
+	},
+
 	"cluster": [
 		{
 			"nodeName": "pool1",

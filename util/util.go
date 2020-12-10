@@ -2,8 +2,11 @@ package util
 
 import (
 	"bytes"
+	"encoding/hex"
+	"errors"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/mutalisk999/bitcoin-lib/src/base58"
+	"github.com/mutalisk999/bitcoin-lib/src/blob"
 	"github.com/mutalisk999/bitcoin-lib/src/utility"
 	"math/big"
 	"regexp"
@@ -107,4 +110,36 @@ func String2Big(num string) *big.Int {
 	n := new(big.Int)
 	n.SetString(num, 0)
 	return n
+}
+
+func TargetHash256StratumFormat(hexStr string) (string, error) {
+	var b blob.Baseblob
+	err := b.SetHex(hexStr)
+	if err != nil {
+		return "", err
+	}
+	if b.GetDataSize() != 32 {
+		return "", errors.New("TargetHash256StratumFormat: Invalid hexStr size")
+	}
+	b2 := make([]byte, 32)
+	for i := 0; i < 8; i++ {
+		for j := 0; j < 4; j++ {
+			b2[i*4+j] = b.GetData()[i*4+(3-j)]
+		}
+	}
+	return hex.EncodeToString(b2), nil
+}
+
+func Hash256StratumFormat(hexStr string) (string, error) {
+	var b blob.Baseblob
+	err := b.SetHex(hexStr)
+	if err != nil {
+		return "", err
+	}
+	if b.GetDataSize() != 32 {
+		return "", errors.New("Hash256StratumFormat: Invalid hexStr size")
+	}
+	var b2 blob.Byteblob
+	b2.SetData(b.GetData())
+	return b2.GetHex(), nil
 }

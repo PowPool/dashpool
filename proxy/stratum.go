@@ -252,16 +252,27 @@ func (s *ProxyServer) broadcastNewJobs() {
 		return
 	}
 
-	// TODO prevHashHex
 	prevHashHex := prevHash.GetHex()
+	prevHashHexStratum, err := TargetHash256StratumFormat(prevHashHex)
+	if err != nil {
+		return
+	}
 
 	tplJob, ok := t.BlockTplJobMap[t.lastBlkTplId]
 	if !ok {
 		return
 	}
 
-	// TODO MerkleBranch
-	params = append(append(append(append(append(params, t.lastBlkTplId), prevHashHex), tplJob.CoinBase1), tplJob.CoinBase2), tplJob.MerkleBranch)
+	var MerkleBranchStratum []string
+	for _, hashHex := range tplJob.MerkleBranch {
+		hashHexStratum, err := Hash256StratumFormat(hashHex)
+		if err != nil {
+			return
+		}
+		MerkleBranchStratum = append(MerkleBranchStratum, hashHexStratum)
+	}
+
+	params = append(append(append(append(append(params, t.lastBlkTplId), prevHashHexStratum), tplJob.CoinBase1), tplJob.CoinBase2), MerkleBranchStratum)
 	params = append(append(append(params, fmt.Sprintf("%08x", t.Version)),
 		fmt.Sprintf("%08x", t.NBits)), fmt.Sprintf("%08x", tplJob.BlkTplJobTime))
 	params = append(params, t.newBlkTpl)
