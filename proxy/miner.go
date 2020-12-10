@@ -152,6 +152,11 @@ func X11HashVerify(block *Block) bool {
 		return false
 	}
 
+	Debug.Printf("block.coinBase1: %s", block.coinBase1)
+	Debug.Printf("block.extraNonce1: %s", block.extraNonce1)
+	Debug.Printf("block.extraNonce2: %s", block.extraNonce2)
+	Debug.Printf("block.coinBase2: %s", block.coinBase2)
+
 	// construct coin base transaction
 	bytesCoinBaseTx := append(append(append(append([]byte{}, bytes1...), bytes2...), bytes3...), bytes4...)
 	bytesBuf := bytes.NewBuffer(bytesCoinBaseTx)
@@ -170,12 +175,17 @@ func X11HashVerify(block *Block) bool {
 		return false
 	}
 
+	Debug.Printf("coinBase trx id: %s", cbTrxId.GetHex())
+	Debug.Printf("block.merkleBranch: %v", block.merkleBranch)
+
 	// get merkle root hash
 	merkleRootHex, err := dashcoin.GetMerkleRootHexFromCoinBaseAndMerkleBranch(cbTrxId.GetHex(), block.merkleBranch)
 	if err != nil {
 		Error.Println("X11HashVerify: GetMerkleRootHexFromCoinBaseAndMerkleBranch error")
 		return false
 	}
+
+	Debug.Printf("merkleRootHex: %s", merkleRootHex)
 
 	// construct block header
 	var blockHeader dashcoin.BlockHeader
@@ -212,11 +222,22 @@ func X11HashVerify(block *Block) bool {
 		return false
 	}
 
+	Debug.Printf("blockHeader.Version: %d", blockHeader.Version)
+	Debug.Printf("blockHeader.HashPrevBlock: %s", blockHeader.HashPrevBlock.GetHex())
+	Debug.Printf("blockHeader.HashMerkleRoot: %s", blockHeader.HashMerkleRoot.GetHex())
+	Debug.Printf("blockHeader.Time: %d", blockHeader.Time)
+	Debug.Printf("blockHeader.Bits: %d", blockHeader.Bits)
+	Debug.Printf("blockHeader.Nonce: %d", blockHeader.Nonce)
+
+	Debug.Printf("blockHeader Hex: %s", hex.EncodeToString(bytesBuf.Bytes()))
+
 	// calc block header hash
 	bytesRes := goX11.CalcX11Hash(bytesBuf.Bytes())
 	var res blob.Baseblob
 	res.SetData(bytesRes)
 	resHex := res.GetHex()
+
+	Debug.Printf("Target Hex: %064s", resHex)
 
 	hashDiff := TargetHexToDiff(resHex)
 

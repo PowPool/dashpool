@@ -2,7 +2,6 @@ package proxy
 
 import (
 	"bufio"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -163,6 +162,9 @@ func (cs *Session) handleTCPMessage(s *ProxyServer, req *StratumReq) error {
 			Error.Println("Malformed stratum request (mining.submit) params from", cs.ip)
 			return err
 		}
+
+		Debug.Printf("mining.submit, Param: %v", params)
+
 		reply, errReply := s.handleTCPSubmitRPC(cs, params)
 		if errReply != nil {
 			return cs.sendTCPError(req.Id, errReply)
@@ -249,13 +251,16 @@ func (s *ProxyServer) broadcastNewJobs() {
 	if err != nil {
 		return
 	}
-	prevHashHex := hex.EncodeToString(prevHash.GetData())
+
+	// TODO prevHashHex
+	prevHashHex := prevHash.GetHex()
 
 	tplJob, ok := t.BlockTplJobMap[t.lastBlkTplId]
 	if !ok {
 		return
 	}
 
+	// TODO MerkleBranch
 	params = append(append(append(append(append(params, t.lastBlkTplId), prevHashHex), tplJob.CoinBase1), tplJob.CoinBase2), tplJob.MerkleBranch)
 	params = append(append(append(params, fmt.Sprintf("%08x", t.Version)),
 		fmt.Sprintf("%08x", t.NBits)), fmt.Sprintf("%08x", tplJob.BlkTplJobTime))
