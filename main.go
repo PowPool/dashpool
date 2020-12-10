@@ -40,10 +40,10 @@ func startBlockUnlocker() {
 	u.Start()
 }
 
-func startPayoutsProcessor() {
-	u := payouts.NewPayoutsProcessor(&cfg.Payouts, backend)
-	u.Start()
-}
+//func startPayoutsProcessor() {
+//	u := payouts.NewPayoutsProcessor(&cfg.Payouts, backend)
+//	u.Start()
+//}
 
 // this function is for performance profile
 //func startNewrelic() {

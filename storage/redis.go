@@ -35,8 +35,10 @@ type BlockData struct {
 	Orphan         bool     `json:"orphan"`
 	Hash           string   `json:"hash"`
 	Nonce          string   `json:"-"`
-	PowHash        string   `json:"-"`
-	MixDigest      string   `json:"-"`
+	ENonce1        string   `json:"-"`
+	ENonce2        string   `json:"-"`
+	CoinBaseValue  *big.Int `json:"-"`
+	BlkTotalFee    *big.Int `json:"-"`
 	Reward         *big.Int `json:"-"`
 	ExtraReward    *big.Int `json:"-"`
 	ImmatureReward string   `json:"-"`
@@ -51,9 +53,8 @@ type HashRateStatsData struct {
 	TotalWorks  uint64 `json:"totalWorks"`
 }
 
-func (b *BlockData) RewardInShannon() int64 {
-	reward := new(big.Int).Div(b.Reward, Shannon)
-	return reward.Int64()
+func (b *BlockData) RewardInSatoshi() int64 {
+	return b.Reward.Int64()
 }
 
 func (b *BlockData) serializeHash() string {
@@ -174,8 +175,7 @@ func (r *RedisClient) GetNodeStates() ([]map[string]interface{}, error) {
 }
 
 func (r *RedisClient) checkPoWExist(height uint64, params []string) (bool, error) {
-	// Sweep PoW backlog for previous blocks, we have 3 templates back in RAM
-	r.client.ZRemRangeByScore(r.formatKey("pow"), "-inf", fmt.Sprint("(", height-8))
+	r.client.ZRemRangeByScore(r.formatKey("pow"), "-inf", fmt.Sprint("(", height-3))
 	val, err := r.client.ZAdd(r.formatKey("pow"), redis.Z{Score: float64(height), Member: strings.Join(params, ":")}).Result()
 	return val == 0, err
 }
@@ -185,7 +185,6 @@ func (r *RedisClient) WriteShare(login, id string, params []string, diff int64, 
 	if err != nil {
 		return false, err
 	}
-	// Duplicate share, (nonce, powHash, mixDigest) pair exist
 	if exist {
 		return true, nil
 	}
@@ -220,12 +219,12 @@ func (r *RedisClient) WriteRejectShare(ms, ts int64, login, id string, diff int6
 	return nil
 }
 
-func (r *RedisClient) WriteBlock(login, id string, params []string, diff, roundDiff int64, height uint64, window time.Duration) (bool, error) {
+func (r *RedisClient) WriteBlock(login, id string, params []string, diff, roundDiff int64, height uint64,
+	coinBaseValue int64, blkTotalFee int64, window time.Duration) (bool, error) {
 	exist, err := r.checkPoWExist(height, params)
 	if err != nil {
 		return false, err
 	}
-	// Duplicate share, (nonce, powHash, mixDigest) pair exist
 	if exist {
 		return true, nil
 	}
@@ -255,7 +254,7 @@ func (r *RedisClient) WriteBlock(login, id string, params []string, diff, roundD
 			totalShares += n
 		}
 		hashHex := strings.Join(params, ":")
-		s := join(hashHex, ts, roundDiff, totalShares)
+		s := join(hashHex, ts, roundDiff, totalShares, coinBaseValue, blkTotalFee)
 		cmd := r.client.ZAdd(r.formatKey("blocks", "candidates"), redis.Z{Score: float64(height), Member: s})
 		return false, cmd.Err()
 	}
@@ -533,7 +532,7 @@ func (r *RedisClient) WriteMaturedBlock(block *BlockData, roundRewards map[strin
 		tx.HIncrBy(r.formatKey("finances"), "immature", (totalImmature * -1))
 		tx.HSet(r.formatKey("finances"), "lastCreditHeight", strconv.FormatInt(block.Height, 10))
 		tx.HSet(r.formatKey("finances"), "lastCreditHash", block.Hash)
-		tx.HIncrBy(r.formatKey("finances"), "totalMined", block.RewardInShannon())
+		tx.HIncrBy(r.formatKey("finances"), "totalMined", block.RewardInSatoshi())
 		return nil
 	})
 	return err
@@ -865,17 +864,21 @@ func (r *RedisClient) CollectLuckStats(windows []int) (map[string]interface{}, e
 func convertCandidateResults(raw *redis.ZSliceCmd) []*BlockData {
 	var result []*BlockData
 	for _, v := range raw.Val() {
-		// "nonce:powHash:mixDigest:timestamp:diff:totalShares"
+		// "nonce:eNonce1:eNonce2:timestamp:diff:totalShares:coinBaseValue:blkTotalFee"
 		block := BlockData{}
 		block.Height = int64(v.Score)
 		block.RoundHeight = block.Height
 		fields := strings.Split(v.Member.(string), ":")
 		block.Nonce = fields[0]
-		block.PowHash = fields[1]
-		block.MixDigest = fields[2]
+		block.ENonce1 = fields[1]
+		block.ENonce2 = fields[2]
 		block.Timestamp, _ = strconv.ParseInt(fields[3], 10, 64)
 		block.Difficulty, _ = strconv.ParseInt(fields[4], 10, 64)
 		block.TotalShares, _ = strconv.ParseInt(fields[5], 10, 64)
+		coinBaseValue, _ := strconv.ParseInt(fields[6], 10, 64)
+		block.CoinBaseValue = big.NewInt(coinBaseValue)
+		blkTotalFee, _ := strconv.ParseInt(fields[7], 10, 64)
+		block.BlkTotalFee = big.NewInt(blkTotalFee)
 		block.candidateKey = v.Member.(string)
 		result = append(result, &block)
 	}
@@ -891,8 +894,8 @@ func convertBlockResults(rows ...*redis.ZSliceCmd) []*BlockData {
 			block.Height = int64(v.Score)
 			block.RoundHeight = block.Height
 			fields := strings.Split(v.Member.(string), ":")
-			block.UncleHeight, _ = strconv.ParseInt(fields[0], 10, 64)
-			block.Uncle = block.UncleHeight > 0
+			block.UncleHeight = 0
+			block.Uncle = false
 			block.Orphan, _ = strconv.ParseBool(fields[1])
 			block.Nonce = fields[2]
 			block.Hash = fields[3]

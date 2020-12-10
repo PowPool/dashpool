@@ -14,19 +14,22 @@ import (
 	"github.com/ethereum/go-ethereum/common/math"
 )
 
-var Ether = math.BigPow(10, 18)
-var Shannon = math.BigPow(10, 9)
+//var Ether = math.BigPow(10, 18)
+//var Shannon = math.BigPow(10, 9)
+
+var Dash = math.BigPow(10, 8)
+var Satoshi = math.BigPow(10, 0)
 
 var pow256 = math.BigPow(2, 256)
 var addressPattern = regexp.MustCompile("^0x[0-9a-fA-F]{40}$")
 var zeroHash = regexp.MustCompile("^0?x?0+$")
 
-func IsValidHexAddress(s string) bool {
-	if IsZeroHash(s) || !addressPattern.MatchString(s) {
-		return false
-	}
-	return true
-}
+//func IsValidHexAddress(s string) bool {
+//	if IsZeroHash(s) || !addressPattern.MatchString(s) {
+//		return false
+//	}
+//	return true
+//}
 
 func IsValidDashAddress(address string) bool {
 	addrWithCheck, err := base58.Decode(address)
@@ -71,9 +74,15 @@ func FormatReward(reward *big.Int) string {
 	return reward.String()
 }
 
+//func FormatRatReward(reward *big.Rat) string {
+//	wei := new(big.Rat).SetInt(Ether)
+//	reward = reward.Quo(reward, wei)
+//	return reward.FloatString(8)
+//}
+
 func FormatRatReward(reward *big.Rat) string {
-	wei := new(big.Rat).SetInt(Ether)
-	reward = reward.Quo(reward, wei)
+	satoshi := new(big.Rat).SetInt(Dash)
+	reward = reward.Quo(reward, satoshi)
 	return reward.FloatString(8)
 }
 

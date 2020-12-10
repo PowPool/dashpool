@@ -72,6 +72,7 @@ func (s *ProxyServer) processShare(login, id, eNonce1, ip string, shareDiff int6
 		return false, false
 	}
 
+	paramIn := []string{nonceHex, eNonce1, eNonce2Hex}
 	if X11HashVerify(&block) {
 		// construct new block
 		rawBlockHex, err := ConstructRawDashBlockHex(&block, &h, t)
@@ -88,7 +89,8 @@ func (s *ProxyServer) processShare(login, id, eNonce1, ip string, shareDiff int6
 			return false, false
 		} else {
 			s.fetchBlockTemplate()
-			exist, err := s.backend.WriteBlock(login, id, params, shareDiff, t.Difficulty.Int64(), uint64(t.Height), s.hashrateExpiration)
+			exist, err := s.backend.WriteBlock(login, id, paramIn, shareDiff, t.Difficulty.Int64(), uint64(t.Height),
+				h.CoinBaseValue, h.JobTxsFeeTotal, s.hashrateExpiration)
 			if exist {
 				ms := MakeTimestamp()
 				ts := ms / 1000
@@ -110,7 +112,7 @@ func (s *ProxyServer) processShare(login, id, eNonce1, ip string, shareDiff int6
 			BlockLog.Printf("Block found by miner %v@%v at height %d", login, ip, t.Height)
 		}
 	} else {
-		exist, err := s.backend.WriteShare(login, id, params, shareDiff, uint64(t.Height), s.hashrateExpiration)
+		exist, err := s.backend.WriteShare(login, id, paramIn, shareDiff, uint64(t.Height), s.hashrateExpiration)
 		if exist {
 			ms := MakeTimestamp()
 			ts := ms / 1000

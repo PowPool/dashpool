@@ -14,12 +14,14 @@ import (
 )
 
 type BlockTemplateJob struct {
-	BlkTplJobId   string
-	BlkTplJobTime uint32
-	TxIdList      []string
-	MerkleBranch  []string
-	CoinBase1     string
-	CoinBase2     string
+	BlkTplJobId    string
+	BlkTplJobTime  uint32
+	TxIdList       []string
+	MerkleBranch   []string
+	CoinBase1      string
+	CoinBase2      string
+	CoinBaseValue  int64
+	JobTxsFeeTotal int64
 }
 
 type BlockTemplate struct {
@@ -122,6 +124,11 @@ func (s *ProxyServer) fetchBlockTemplate() {
 	}
 	newTplJob.CoinBase1 = hex.EncodeToString(coinBaseTx.CoinBaseTx1)
 	newTplJob.CoinBase2 = hex.EncodeToString(coinBaseTx.CoinBaseTx2)
+	newTplJob.CoinBaseValue = blkTplReply.CoinBaseValue
+	newTplJob.JobTxsFeeTotal = 0
+	for _, tx := range blkTplReply.Transactions {
+		newTplJob.JobTxsFeeTotal += tx.Fee
+	}
 	newTplJob.BlkTplJobId = hex.EncodeToString(utility.Sha256(coinBaseTx.CoinBaseTx1))[0:16]
 
 	newTpl.lastBlkTplId = newTplJob.BlkTplJobId

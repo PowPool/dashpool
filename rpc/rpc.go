@@ -26,18 +26,26 @@ type RPCClient struct {
 	client      *http.Client
 }
 
+//type GetBlockReply struct {
+//	Number       string   `json:"number"`
+//	Hash         string   `json:"hash"`
+//	Nonce        string   `json:"nonce"`
+//	Miner        string   `json:"miner"`
+//	Difficulty   string   `json:"difficulty"`
+//	GasLimit     string   `json:"gasLimit"`
+//	GasUsed      string   `json:"gasUsed"`
+//	Transactions []Tx     `json:"transactions"`
+//	Uncles       []string `json:"uncles"`
+//	// https://github.com/ethereum/EIPs/issues/95
+//	SealFields []string `json:"sealFields"`
+//}
+
 type GetBlockReply struct {
-	Number       string   `json:"number"`
-	Hash         string   `json:"hash"`
-	Nonce        string   `json:"nonce"`
-	Miner        string   `json:"miner"`
-	Difficulty   string   `json:"difficulty"`
-	GasLimit     string   `json:"gasLimit"`
-	GasUsed      string   `json:"gasUsed"`
-	Transactions []Tx     `json:"transactions"`
-	Uncles       []string `json:"uncles"`
-	// https://github.com/ethereum/EIPs/issues/95
-	SealFields []string `json:"sealFields"`
+	Height       uint32  `json:"height"`
+	Hash         string  `json:"hash"`
+	Nonce        uint32  `json:"nonce"`
+	Difficulty   float64 `json:"difficulty"`
+	Transactions []Tx    `json:"tx"`
 }
 
 type CoinBaseAux struct {
@@ -47,6 +55,7 @@ type CoinBaseAux struct {
 type BlockTplTransaction struct {
 	Data string `json:"data"`
 	Hash string `json:"hash"`
+	Fee  int64  `json:"fee"`
 }
 
 type GetBlockTemplateReplyPart struct {
@@ -83,10 +92,27 @@ func (r *TxReceipt) Successful() bool {
 	return true
 }
 
+//type Tx struct {
+//	Gas      string `json:"gas"`
+//	GasPrice string `json:"gasPrice"`
+//	Hash     string `json:"hash"`
+//}
+
 type Tx struct {
-	Gas      string `json:"gas"`
-	GasPrice string `json:"gasPrice"`
-	Hash     string `json:"hash"`
+	TxId string `json:"txid"`
+	Vin  []Vin  `json:"vin"`
+	Vout []Vout `json:"vout"`
+}
+
+type Vin struct {
+	PrevOutHash string `json:"txid"`
+	PrevOutN    uint32 `json:"vout"`
+}
+
+type Vout struct {
+	Value    float64 `json:"value"`
+	ValueSat int64   `json:"valueSat"`
+	N        uint32  `json:"n"`
 }
 
 type JSONRpcResp struct {
@@ -140,9 +166,19 @@ func (r *RPCClient) GetPendingBlock() (*GetBlockTemplateReplyPart, error) {
 	return nil, nil
 }
 
-func (r *RPCClient) GetBlockByHeight(height int64) (*GetBlockReply, error) {
-	params := []interface{}{fmt.Sprintf("0x%x", height), true}
-	return r.getBlockBy("eth_getBlockByNumber", params)
+//func (r *RPCClient) GetBlockByHeight(height int64) (*GetBlockReply, error) {
+//	params := []interface{}{fmt.Sprintf("0x%x", height), true}
+//	return r.getBlockBy("eth_getBlockByNumber", params)
+//}
+
+func (r *RPCClient) GetBlockHashByHeight(height int64) (string, error) {
+	rpcResp, err := r.doPost(r.Url, "getblockhash", []int64{height})
+	if err != nil {
+		return "", err
+	}
+	var reply string
+	err = json.Unmarshal(*rpcResp.Result, &reply)
+	return reply, err
 }
 
 func (r *RPCClient) GetBlockByHash(hash string) (*GetBlockReply, error) {
@@ -182,7 +218,7 @@ func (r *RPCClient) GetTxReceipt(hash string) (*TxReceipt, error) {
 }
 
 func (r *RPCClient) SubmitBlock(params []string) (bool, error) {
-	rpcResp, err := r.doPost(r.Url, "eth_submitWork", params)
+	rpcResp, err := r.doPost(r.Url, "submitblock", params)
 	if err != nil {
 		return false, err
 	}
