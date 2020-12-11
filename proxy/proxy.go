@@ -185,13 +185,6 @@ func (s *ProxyServer) checkUpstreams(coinBase string) {
 			candidate = int32(i)
 			backup = true
 		}
-
-		walletCoinBase, err := v.CoinBase()
-		if err == nil {
-			if strings.ToLower(walletCoinBase) != strings.ToLower(coinBase) {
-				Error.Fatal("Invalid Wallet CoinBase!")
-			}
-		}
 	}
 
 	if s.upstream != candidate {
@@ -289,11 +282,6 @@ func (cs *Session) handleMessage(s *ProxyServer, r *http.Request, req *JSONRpcRe
 	vars := mux.Vars(r)
 	login := strings.ToLower(vars["login"])
 
-	//if !IsValidHexAddress(login) {
-	//	errReply := &ErrorReply{Code: -1, Message: "Invalid login"}
-	//	_ = cs.sendError(req.Id, errReply)
-	//	return
-	//}
 	if !IsValidDashAddress(login) {
 		errReply := &ErrorReply{Code: -1, Message: "Invalid login"}
 		_ = cs.sendError(req.Id, errReply)
@@ -307,13 +295,6 @@ func (cs *Session) handleMessage(s *ProxyServer, r *http.Request, req *JSONRpcRe
 
 	// Handle RPC methods
 	switch req.Method {
-	//case "eth_getWork":
-	//	reply, errReply := s.handleGetWorkRPC(cs)
-	//	if errReply != nil {
-	//		_ = cs.sendError(req.Id, errReply)
-	//		break
-	//	}
-	//	_ = cs.sendResult(req.Id, &reply)
 	case "eth_submitWork":
 		if req.Params != nil {
 			var params []string
@@ -334,9 +315,6 @@ func (cs *Session) handleMessage(s *ProxyServer, r *http.Request, req *JSONRpcRe
 			errReply := &ErrorReply{Code: -1, Message: "Malformed request"}
 			_ = cs.sendError(req.Id, errReply)
 		}
-	//case "eth_getBlockByNumber":
-	//	reply := s.handleGetBlockByNumberRPC()
-	//	_ = cs.sendResult(req.Id, reply)
 	case "eth_submitHashrate":
 		_ = cs.sendResult(req.Id, true)
 	default:

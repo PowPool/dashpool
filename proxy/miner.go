@@ -79,14 +79,10 @@ func (s *ProxyServer) processShare(login, id, eNonce1, ip string, shareDiff int6
 		if err != nil {
 			return false, false
 		}
-		ok, err := s.rpc().SubmitBlock([]string{rawBlockHex})
+		err = s.rpc().SubmitBlock([]interface{}{rawBlockHex})
 		if err != nil {
 			Error.Printf("Block submission failure at height %v for %v: %v", t.Height, t.PrevHash, err)
 			BlockLog.Printf("Block submission failure at height %v for %v: %v", t.Height, t.PrevHash, err)
-		} else if !ok {
-			Error.Printf("Block rejected at height %v for %v", t.Height, t.PrevHash)
-			BlockLog.Printf("Block rejected at height %v for %v", t.Height, t.PrevHash)
-			return false, false
 		} else {
 			s.fetchBlockTemplate()
 			exist, err := s.backend.WriteBlock(login, id, paramIn, shareDiff, t.Difficulty.Int64(), uint64(t.Height),

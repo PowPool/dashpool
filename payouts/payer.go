@@ -1,17 +1,10 @@
 package payouts
 
 import (
-	"fmt"
-	"math/big"
-	"os"
-	"strconv"
 	"time"
-
-	"github.com/ethereum/go-ethereum/common/hexutil"
 
 	"github.com/MiningPool0826/dashpool/rpc"
 	"github.com/MiningPool0826/dashpool/storage"
-	. "github.com/MiningPool0826/dashpool/util"
 )
 
 const txCheckInterval = 5 * time.Second
@@ -31,15 +24,15 @@ type PayoutsConfig struct {
 	BgSave    bool  `json:"bgsave"`
 }
 
-func (c PayoutsConfig) GasHex() string {
-	x := String2Big(c.Gas)
-	return hexutil.EncodeBig(x)
-}
-
-func (c PayoutsConfig) GasPriceHex() string {
-	x := String2Big(c.GasPrice)
-	return hexutil.EncodeBig(x)
-}
+//func (c PayoutsConfig) GasHex() string {
+//	x := String2Big(c.Gas)
+//	return hexutil.EncodeBig(x)
+//}
+//
+//func (c PayoutsConfig) GasPriceHex() string {
+//	x := String2Big(c.GasPrice)
+//	return hexutil.EncodeBig(x)
+//}
 
 type PayoutsProcessor struct {
 	config   *PayoutsConfig
@@ -49,11 +42,11 @@ type PayoutsProcessor struct {
 	lastFail error
 }
 
-func NewPayoutsProcessor(cfg *PayoutsConfig, backend *storage.RedisClient) *PayoutsProcessor {
-	u := &PayoutsProcessor{config: cfg, backend: backend}
-	u.rpc = rpc.NewRPCClient("PayoutsProcessor", cfg.Daemon, cfg.Timeout)
-	return u
-}
+//func NewPayoutsProcessor(cfg *PayoutsConfig, backend *storage.RedisClient) *PayoutsProcessor {
+//	u := &PayoutsProcessor{config: cfg, backend: backend}
+//	u.rpc = rpc.NewRPCClient("PayoutsProcessor", cfg.Daemon, cfg.Timeout)
+//	return u
+//}
 
 //func (p *PayoutsProcessor) Start() {
 //	Info.Println("Starting payouts")
@@ -225,79 +218,79 @@ func NewPayoutsProcessor(cfg *PayoutsConfig, backend *storage.RedisClient) *Payo
 //	}
 //}
 
-func (p PayoutsProcessor) isUnlockedAccount() bool {
-	_, err := p.rpc.Sign(p.config.Address, "0x0")
-	if err != nil {
-		Error.Println("Unable to process payouts:", err)
-		return false
-	}
-	return true
-}
+//func (p PayoutsProcessor) isUnlockedAccount() bool {
+//	_, err := p.rpc.Sign(p.config.Address, "0x0")
+//	if err != nil {
+//		Error.Println("Unable to process payouts:", err)
+//		return false
+//	}
+//	return true
+//}
 
-func (p PayoutsProcessor) checkPeers() bool {
-	n, err := p.rpc.GetPeerCount()
-	if err != nil {
-		Error.Println("Unable to start payouts, failed to retrieve number of peers from node:", err)
-		return false
-	}
-	if n < p.config.RequirePeers {
-		Error.Println("Unable to start payouts, number of peers on a node is less than required", p.config.RequirePeers)
-		return false
-	}
-	return true
-}
+//func (p PayoutsProcessor) checkPeers() bool {
+//	n, err := p.rpc.GetPeerCount()
+//	if err != nil {
+//		Error.Println("Unable to start payouts, failed to retrieve number of peers from node:", err)
+//		return false
+//	}
+//	if n < p.config.RequirePeers {
+//		Error.Println("Unable to start payouts, number of peers on a node is less than required", p.config.RequirePeers)
+//		return false
+//	}
+//	return true
+//}
 
-func (p PayoutsProcessor) reachedThreshold(amount *big.Int) bool {
-	return big.NewInt(p.config.Threshold).Cmp(amount) < 0
-}
-
-func formatPendingPayments(list []*storage.PendingPayment) string {
-	var s string
-	for _, v := range list {
-		s += fmt.Sprintf("\tAddress: %s, Amount: %v Shannon, %v\n", v.Address, v.Amount, time.Unix(v.Timestamp, 0))
-	}
-	return s
-}
-
-func (p PayoutsProcessor) bgSave() {
-	result, err := p.backend.BgSave()
-	if err != nil {
-		Error.Println("Failed to perform BGSAVE on backend:", err)
-		return
-	}
-	Info.Println("Saving backend state to disk:", result)
-}
-
-func (p PayoutsProcessor) resolvePayouts() {
-	payments := p.backend.GetPendingPayments()
-
-	if len(payments) > 0 {
-		Info.Printf("Will credit back following balances:\n%s", formatPendingPayments(payments))
-
-		for _, v := range payments {
-			err := p.backend.RollbackBalance(v.Address, v.Amount)
-			if err != nil {
-				Error.Printf("Failed to credit %v Shannon back to %s, error is: %v", v.Amount, v.Address, err)
-				return
-			}
-			Info.Printf("Credited %v Shannon back to %s", v.Amount, v.Address)
-		}
-		err := p.backend.UnlockPayouts()
-		if err != nil {
-			Error.Println("Failed to unlock payouts:", err)
-			return
-		}
-	} else {
-		Error.Println("No pending payments to resolve")
-	}
-
-	if p.config.BgSave {
-		p.bgSave()
-	}
-	Info.Println("Payouts unlocked")
-}
-
-func (p PayoutsProcessor) mustResolvePayout() bool {
-	v, _ := strconv.ParseBool(os.Getenv("RESOLVE_PAYOUT"))
-	return v
-}
+//func (p PayoutsProcessor) reachedThreshold(amount *big.Int) bool {
+//	return big.NewInt(p.config.Threshold).Cmp(amount) < 0
+//}
+//
+//func formatPendingPayments(list []*storage.PendingPayment) string {
+//	var s string
+//	for _, v := range list {
+//		s += fmt.Sprintf("\tAddress: %s, Amount: %v Shannon, %v\n", v.Address, v.Amount, time.Unix(v.Timestamp, 0))
+//	}
+//	return s
+//}
+//
+//func (p PayoutsProcessor) bgSave() {
+//	result, err := p.backend.BgSave()
+//	if err != nil {
+//		Error.Println("Failed to perform BGSAVE on backend:", err)
+//		return
+//	}
+//	Info.Println("Saving backend state to disk:", result)
+//}
+//
+//func (p PayoutsProcessor) resolvePayouts() {
+//	payments := p.backend.GetPendingPayments()
+//
+//	if len(payments) > 0 {
+//		Info.Printf("Will credit back following balances:\n%s", formatPendingPayments(payments))
+//
+//		for _, v := range payments {
+//			err := p.backend.RollbackBalance(v.Address, v.Amount)
+//			if err != nil {
+//				Error.Printf("Failed to credit %v Shannon back to %s, error is: %v", v.Amount, v.Address, err)
+//				return
+//			}
+//			Info.Printf("Credited %v Shannon back to %s", v.Amount, v.Address)
+//		}
+//		err := p.backend.UnlockPayouts()
+//		if err != nil {
+//			Error.Println("Failed to unlock payouts:", err)
+//			return
+//		}
+//	} else {
+//		Error.Println("No pending payments to resolve")
+//	}
+//
+//	if p.config.BgSave {
+//		p.bgSave()
+//	}
+//	Info.Println("Payouts unlocked")
+//}
+//
+//func (p PayoutsProcessor) mustResolvePayout() bool {
+//	v, _ := strconv.ParseBool(os.Getenv("RESOLVE_PAYOUT"))
+//	return v
+//}

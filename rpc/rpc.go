@@ -2,15 +2,9 @@ package rpc
 
 import (
 	"bytes"
-	"crypto/sha256"
 	"encoding/json"
 	"errors"
-	"fmt"
-	"github.com/ethereum/go-ethereum/common/hexutil"
-	"math/big"
 	"net/http"
-	"strconv"
-	"strings"
 	"sync"
 
 	. "github.com/MiningPool0826/dashpool/util"
@@ -25,20 +19,6 @@ type RPCClient struct {
 	successRate int
 	client      *http.Client
 }
-
-//type GetBlockReply struct {
-//	Number       string   `json:"number"`
-//	Hash         string   `json:"hash"`
-//	Nonce        string   `json:"nonce"`
-//	Miner        string   `json:"miner"`
-//	Difficulty   string   `json:"difficulty"`
-//	GasLimit     string   `json:"gasLimit"`
-//	GasUsed      string   `json:"gasUsed"`
-//	Transactions []Tx     `json:"transactions"`
-//	Uncles       []string `json:"uncles"`
-//	// https://github.com/ethereum/EIPs/issues/95
-//	SealFields []string `json:"sealFields"`
-//}
 
 type GetBlockReply struct {
 	Height       uint32  `json:"height"`
@@ -92,12 +72,6 @@ func (r *TxReceipt) Successful() bool {
 	return true
 }
 
-//type Tx struct {
-//	Gas      string `json:"gas"`
-//	GasPrice string `json:"gasPrice"`
-//	Hash     string `json:"hash"`
-//}
-
 type Tx struct {
 	TxId string `json:"txid"`
 	Vin  []Vin  `json:"vin"`
@@ -140,19 +114,6 @@ func (r *RPCClient) GetPrevBlockHash() (string, error) {
 	return reply, err
 }
 
-func (r *RPCClient) GetCoinBase() (string, error) {
-	rpcResp, err := r.doPost(r.Url, "eth_coinbase", []string{})
-	if err != nil {
-		return "", err
-	}
-	var reply string
-	err = json.Unmarshal(*rpcResp.Result, &reply)
-	if err != nil {
-		return "", err
-	}
-	return reply, nil
-}
-
 func (r *RPCClient) GetPendingBlock() (*GetBlockTemplateReplyPart, error) {
 	rpcResp, err := r.doPost(r.Url, "getblocktemplate", []string{})
 	if err != nil {
@@ -166,11 +127,6 @@ func (r *RPCClient) GetPendingBlock() (*GetBlockTemplateReplyPart, error) {
 	return nil, nil
 }
 
-//func (r *RPCClient) GetBlockByHeight(height int64) (*GetBlockReply, error) {
-//	params := []interface{}{fmt.Sprintf("0x%x", height), true}
-//	return r.getBlockBy("eth_getBlockByNumber", params)
-//}
-
 func (r *RPCClient) GetBlockHashByHeight(height int64) (string, error) {
 	rpcResp, err := r.doPost(r.Url, "getblockhash", []int64{height})
 	if err != nil {
@@ -182,13 +138,8 @@ func (r *RPCClient) GetBlockHashByHeight(height int64) (string, error) {
 }
 
 func (r *RPCClient) GetBlockByHash(hash string) (*GetBlockReply, error) {
-	params := []interface{}{hash, true}
-	return r.getBlockBy("eth_getBlockByHash", params)
-}
-
-func (r *RPCClient) GetUncleByBlockNumberAndIndex(height int64, index int) (*GetBlockReply, error) {
-	params := []interface{}{fmt.Sprintf("0x%x", height), fmt.Sprintf("0x%x", index)}
-	return r.getBlockBy("eth_getUncleByBlockNumberAndIndex", params)
+	params := []interface{}{hash, 2}
+	return r.getBlockBy("getblock", params)
 }
 
 func (r *RPCClient) getBlockBy(method string, params []interface{}) (*GetBlockReply, error) {
@@ -204,108 +155,25 @@ func (r *RPCClient) getBlockBy(method string, params []interface{}) (*GetBlockRe
 	return nil, nil
 }
 
-func (r *RPCClient) GetTxReceipt(hash string) (*TxReceipt, error) {
-	rpcResp, err := r.doPost(r.Url, "eth_getTransactionReceipt", []string{hash})
-	if err != nil {
-		return nil, err
-	}
-	if rpcResp.Result != nil {
-		var reply *TxReceipt
-		err = json.Unmarshal(*rpcResp.Result, &reply)
-		return reply, err
-	}
-	return nil, nil
-}
-
-func (r *RPCClient) SubmitBlock(params []string) (bool, error) {
+func (r *RPCClient) SubmitBlock(params []interface{}) error {
 	rpcResp, err := r.doPost(r.Url, "submitblock", params)
 	if err != nil {
-		return false, err
+		return err
 	}
-	var reply bool
-	err = json.Unmarshal(*rpcResp.Result, &reply)
-	return reply, err
-}
-
-func (r *RPCClient) GetBalance(address string) (*big.Int, error) {
-	rpcResp, err := r.doPost(r.Url, "eth_getBalance", []string{address, "latest"})
-	if err != nil {
-		return nil, err
+	if rpcResp.Result != nil {
+		var reply string
+		err = json.Unmarshal(*rpcResp.Result, &reply)
+		return errors.New(reply)
 	}
-	var reply string
-	err = json.Unmarshal(*rpcResp.Result, &reply)
-	if err != nil {
-		return nil, err
-	}
-	return String2Big(reply), err
-}
-
-func (r *RPCClient) Sign(from string, s string) (string, error) {
-	hash := sha256.Sum256([]byte(s))
-	rpcResp, err := r.doPost(r.Url, "eth_sign", []string{from, hexutil.Encode(hash[:])})
-	var reply string
-	if err != nil {
-		return reply, err
-	}
-	err = json.Unmarshal(*rpcResp.Result, &reply)
-	if err != nil {
-		return reply, err
-	}
-	if IsZeroHash(reply) {
-		err = errors.New("Can't sign message, perhaps account is locked")
-	}
-	return reply, err
-}
-
-func (r *RPCClient) GetPeerCount() (int64, error) {
-	rpcResp, err := r.doPost(r.Url, "net_peerCount", nil)
-	if err != nil {
-		return 0, err
-	}
-	var reply string
-	err = json.Unmarshal(*rpcResp.Result, &reply)
-	if err != nil {
-		return 0, err
-	}
-	return strconv.ParseInt(strings.Replace(reply, "0x", "", -1), 16, 64)
-}
-
-func (r *RPCClient) SendTransaction(from, to, gas, gasPrice, value string, autoGas bool) (string, error) {
-	params := map[string]string{
-		"from":  from,
-		"to":    to,
-		"value": value,
-	}
-	if !autoGas {
-		params["gas"] = gas
-		params["gasPrice"] = gasPrice
-	}
-	rpcResp, err := r.doPost(r.Url, "eth_sendTransaction", []interface{}{params})
-	var reply string
-	if err != nil {
-		return reply, err
-	}
-	err = json.Unmarshal(*rpcResp.Result, &reply)
-	if err != nil {
-		return reply, err
-	}
-	/* There is an inconsistence in a "standard". Geth returns error if it can't unlock signer account,
-	 * but Parity returns zero hash 0x000... if it can't send tx, so we must handle this case.
-	 * https://github.com/ethereum/wiki/wiki/JSON-RPC#returns-22
-	 */
-	if IsZeroHash(reply) {
-		err = errors.New("transaction is not yet available")
-	}
-	return reply, err
-}
-
-func (r *RPCClient) CoinBase() (string, error) {
-	return r.GetCoinBase()
+	return nil
 }
 
 func (r *RPCClient) doPost(url string, method string, params interface{}) (*JSONRpcResp, error) {
 	jsonReq := map[string]interface{}{"jsonrpc": "2.0", "method": method, "params": params, "id": 0}
-	data, _ := json.Marshal(jsonReq)
+	data, err := json.Marshal(jsonReq)
+	if err != nil {
+		return nil, err
+	}
 
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(data))
 	if err != nil {
