@@ -263,7 +263,9 @@ func (s *ProxyServer) broadcastNewJobs() {
 		return
 	}
 
-	var MerkleBranchStratum []string
+	// https://stackoverflow.com/questions/44119793/why-does-json-encoding-an-empty-array-in-code-return-null
+	// var MerkleBranchStratum []string
+	MerkleBranchStratum := make([]string, 0)
 	for _, hashHex := range tplJob.MerkleBranch {
 		hashHexStratum, err := Hash256StratumFormat(hashHex)
 		if err != nil {
