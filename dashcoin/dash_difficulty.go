@@ -15,15 +15,15 @@ func NBits2Target(nBits uint32) *big.Int {
 	nSize := nBits >> 24
 	nWord := big.NewInt(int64(nBits & 0x007fffff))
 	if nSize <= 3 {
-		nWord = big.NewInt(0).Mul(nWord, big.NewInt(0).Exp(big.NewInt(2), big.NewInt(int64(8*(3-nSize))), nil))
+		nWord = new(big.Int).Mul(nWord, new(big.Int).Exp(big.NewInt(2), big.NewInt(int64(8*(3-nSize))), nil))
 	} else {
-		nWord = big.NewInt(0).Mul(nWord, big.NewInt(0).Exp(big.NewInt(2), big.NewInt(int64(8*(nSize-3))), nil))
+		nWord = new(big.Int).Mul(nWord, new(big.Int).Exp(big.NewInt(2), big.NewInt(int64(8*(nSize-3))), nil))
 	}
 	return nWord
 }
 
 func GetTargetWork(target *big.Int) (float64, error) {
-	targetMax := big.NewInt(0).Exp(big.NewInt(2), big.NewInt(int64(256)), nil)
+	targetMax := new(big.Int).Exp(big.NewInt(2), big.NewInt(int64(256)), nil)
 
 	targetMaxFloat, err := strconv.ParseFloat(targetMax.Text(10), 64)
 	if err != nil {

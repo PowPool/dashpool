@@ -14,7 +14,7 @@ func TestNBits2Target(t *testing.T) {
 }
 
 func TestGetTargetWork(t *testing.T) {
-	targetGenesis, _ := big.NewInt(0).SetString("00000000ffff0000000000000000000000000000000000000000000000000000", 16)
+	targetGenesis, _ := new(big.Int).SetString("00000000ffff0000000000000000000000000000000000000000000000000000", 16)
 	work, _ := GetTargetWork(targetGenesis)
 	fmt.Println("Genesis work:", work)
 }
@@ -29,7 +29,7 @@ func TestGetNBitsDiff(t *testing.T) {
 }
 
 func TestGetTargetDiff(t *testing.T) {
-	targetGenesis, _ := big.NewInt(0).SetString("00000000ffff0000000000000000000000000000000000000000000000000000", 16)
+	targetGenesis, _ := new(big.Int).SetString("00000000ffff0000000000000000000000000000000000000000000000000000", 16)
 	diff, _ := GetTargetDiff(targetGenesis)
 	fmt.Println("Genesis diff:", diff)
 }

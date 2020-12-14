@@ -905,8 +905,8 @@ func convertBlockResults(rows ...*redis.ZSliceCmd) []*BlockData {
 			block.Difficulty, _ = strconv.ParseInt(fields[5], 10, 64)
 			block.TotalShares, _ = strconv.ParseInt(fields[6], 10, 64)
 
-			block.CoinBaseValue, _ = big.NewInt(0).SetString(fields[7], 10)
-			block.BlkTotalFee, _ = big.NewInt(0).SetString(fields[8], 10)
+			block.CoinBaseValue, _ = new(big.Int).SetString(fields[7], 10)
+			block.BlkTotalFee, _ = new(big.Int).SetString(fields[8], 10)
 
 			block.RewardString = fields[9]
 			block.ImmatureReward = fields[9]
