@@ -102,15 +102,15 @@ func (u *BlockUnlocker) unlockCandidates(candidates []*storage.BlockData) (*Unlo
 			return nil, err
 		}
 
-		if len(candidate.Hash) > 0 && strings.EqualFold(candidate.Hash, blockHash) {
-			result.blocks++
+		block, err := u.rpc.GetBlockByHash(blockHash)
+		if err != nil {
+			Error.Printf("Error while retrieving block %v from node: %v", blockHash, err)
+			return nil, err
+		}
 
-			block, err := u.rpc.GetBlockByHash(blockHash)
-			if err != nil {
-				u.halt = true
-				u.lastFail = err
-				return nil, err
-			}
+		blockNonceHex := fmt.Sprintf("%08x", block.Nonce)
+		if len(candidate.Nonce) > 0 && strings.EqualFold(candidate.Nonce, blockNonceHex) {
+			result.blocks++
 
 			err = u.handleBlock(block, candidate)
 			if err != nil {
@@ -131,19 +131,19 @@ func (u *BlockUnlocker) unlockCandidates(candidates []*storage.BlockData) (*Unlo
 }
 
 func (u *BlockUnlocker) handleBlock(block *rpc.GetBlockReply, candidate *storage.BlockData) error {
-	reward := candidate.CoinBaseValue
+	reward := new(big.Int).Set(candidate.CoinBaseValue)
 	// Add TX fees
-	extraTxReward := candidate.BlkTotalFee
+	extraTxReward := new(big.Int).Set(candidate.BlkTotalFee)
 
 	if u.config.KeepTxFees {
-		candidate.ExtraReward = extraTxReward
+		candidate.ExtraReward = new(big.Int).Set(extraTxReward)
 	} else {
 		reward.Add(reward, extraTxReward)
 	}
 
 	candidate.Orphan = false
 	candidate.Hash = block.Hash
-	candidate.Reward = reward
+	candidate.Reward = new(big.Int).Set(reward)
 	return nil
 }
 
@@ -226,7 +226,7 @@ func (u *BlockUnlocker) unlockPendingBlocks() {
 		)
 		entries := []string{logEntry}
 		for login, reward := range roundRewards {
-			entries = append(entries, fmt.Sprintf("\tREWARD %v: %v: %v Shannon", block.RoundKey(), login, reward))
+			entries = append(entries, fmt.Sprintf("\tREWARD %v: %v: %v Satoshi", block.RoundKey(), login, reward))
 		}
 		Info.Println(strings.Join(entries, "\n"))
 	}
@@ -319,7 +319,7 @@ func (u *BlockUnlocker) unlockAndCreditMiners() {
 		)
 		entries := []string{logEntry}
 		for login, reward := range roundRewards {
-			entries = append(entries, fmt.Sprintf("\tREWARD %v: %v: %v Shannon", block.RoundKey(), login, reward))
+			entries = append(entries, fmt.Sprintf("\tREWARD %v: %v: %v Satoshi", block.RoundKey(), login, reward))
 		}
 		Info.Println(strings.Join(entries, "\n"))
 	}

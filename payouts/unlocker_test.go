@@ -28,7 +28,7 @@ func TestCalculateRewards(t *testing.T) {
 		}
 	}
 	if totalAmount != expectedTotalAmount {
-		t.Errorf("Total reward must be equal to block reward in Shannon: %v vs %v", expectedTotalAmount, totalAmount)
+		t.Errorf("Total reward must be equal to block reward in Satoshi: %v vs %v", expectedTotalAmount, totalAmount)
 	}
 }
 

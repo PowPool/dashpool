@@ -78,6 +78,8 @@ func (b *BlockData) key() string {
 		b.Timestamp,
 		b.Difficulty,
 		b.TotalShares,
+		b.CoinBaseValue,
+		b.BlkTotalFee,
 		b.Reward)
 }
 
@@ -889,7 +891,7 @@ func convertBlockResults(rows ...*redis.ZSliceCmd) []*BlockData {
 	var result []*BlockData
 	for _, row := range rows {
 		for _, v := range row.Val() {
-			// "uncleHeight:orphan:nonce:blockHash:timestamp:diff:totalShares:rewardInWei"
+			// "uncleHeight:orphan:nonce:blockHash:timestamp:diff:totalShares:coinBaseValue:blkTotalFee:rewardInSatoshi"
 			block := BlockData{}
 			block.Height = int64(v.Score)
 			block.RoundHeight = block.Height
@@ -902,8 +904,12 @@ func convertBlockResults(rows ...*redis.ZSliceCmd) []*BlockData {
 			block.Timestamp, _ = strconv.ParseInt(fields[4], 10, 64)
 			block.Difficulty, _ = strconv.ParseInt(fields[5], 10, 64)
 			block.TotalShares, _ = strconv.ParseInt(fields[6], 10, 64)
-			block.RewardString = fields[7]
-			block.ImmatureReward = fields[7]
+
+			block.CoinBaseValue, _ = big.NewInt(0).SetString(fields[7], 10)
+			block.BlkTotalFee, _ = big.NewInt(0).SetString(fields[8], 10)
+
+			block.RewardString = fields[9]
+			block.ImmatureReward = fields[9]
 			block.immatureKey = v.Member.(string)
 			result = append(result, &block)
 		}
