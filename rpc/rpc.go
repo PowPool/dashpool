@@ -38,6 +38,12 @@ type BlockTplTransaction struct {
 	Fee  int64  `json:"fee"`
 }
 
+type MasterNode struct {
+	Payee  string `json:"payee"`
+	Script string `json:"script"`
+	Amount int64  `json:"amount"`
+}
+
 type GetBlockTemplateReplyPart struct {
 	Version           uint32                `json:"version"`
 	PreviousBlockHash string                `json:"previousblockhash"`
@@ -49,6 +55,7 @@ type GetBlockTemplateReplyPart struct {
 	Target            string                `json:"target"`
 	Height            uint32                `json:"height"`
 	CoinbasePayload   string                `json:"coinbase_payload"`
+	MasterNodes       []MasterNode          `json:"masternode"`
 }
 
 const receiptStatusSuccessful = "0x1"

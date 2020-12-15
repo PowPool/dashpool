@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/hex"
 	"errors"
+	"github.com/MiningPool0826/dashpool/rpc"
 	"github.com/mutalisk999/bitcoin-lib/src/base58"
 	"github.com/mutalisk999/bitcoin-lib/src/keyid"
 	"github.com/mutalisk999/bitcoin-lib/src/pubkey"
@@ -139,18 +140,24 @@ const (
 	COINBASE_TX_TYPE    = 5
 )
 
+type MasterNodeVout struct {
+	Amount     int64
+	VoutScript []byte
+}
+
 type DashCoinBaseTransaction struct {
-	BlockTime    uint32
-	BlockHeight  uint32
-	RewardValue  int64
-	CBExtras     string
-	CBAuxFlag    []byte
-	ExtraPayload []byte
-	VinScript1   []byte
-	VinScript2   []byte
-	VoutScript   []byte
-	CoinBaseTx1  []byte
-	CoinBaseTx2  []byte
+	BlockTime       uint32
+	BlockHeight     uint32
+	RewardValue     int64
+	MasterNodeVouts []MasterNodeVout
+	CBExtras        string
+	CBAuxFlag       []byte
+	ExtraPayload    []byte
+	VinScript1      []byte
+	VinScript2      []byte
+	VoutScript      []byte
+	CoinBaseTx1     []byte
+	CoinBaseTx2     []byte
 }
 
 func (t *DashCoinBaseTransaction) _generateCoinB() error {
@@ -210,12 +217,34 @@ func (t *DashCoinBaseTransaction) _generateCoinB() error {
 		return err
 	}
 
-	// only 1 vout
-	err = serialize.PackCompactSize(writer, uint64(1))
+	// vout count: 1 + len(t.MasterNodeVouts)
+	err = serialize.PackCompactSize(writer, uint64(1+len(t.MasterNodeVouts)))
 	if err != nil {
 		return err
 	}
 
+	// pack master node vout
+	for _, MasterNodeVout := range t.MasterNodeVouts {
+		err = serialize.PackInt64(writer, MasterNodeVout.Amount)
+		if err != nil {
+			return err
+		}
+
+		var scriptPubKey script.Script
+		scriptPubKey.SetScriptBytes(MasterNodeVout.VoutScript)
+		err = scriptPubKey.Pack(writer)
+		if err != nil {
+			return err
+		}
+
+		t.RewardValue -= MasterNodeVout.Amount
+	}
+
+	if t.RewardValue <= 0 {
+		return errors.New("CoinBase Reward <= 0")
+	}
+
+	// pack coin base reward vout
 	err = serialize.PackInt64(writer, t.RewardValue)
 	if err != nil {
 		return err
@@ -247,7 +276,7 @@ func (t *DashCoinBaseTransaction) _generateCoinB() error {
 }
 
 func (t *DashCoinBaseTransaction) Initialize(cbWallet string, bTime uint32, height uint32, value int64, flags string,
-	cbPayload string, cbExtras string) error {
+	cbPayload string, cbExtras string, masterNodes []rpc.MasterNode) error {
 	t.BlockTime = bTime
 	t.BlockHeight = height
 	t.RewardValue = value
@@ -277,7 +306,17 @@ func (t *DashCoinBaseTransaction) Initialize(cbWallet string, bTime uint32, heig
 
 	t.VoutScript, err = GetCoinBaseScript(cbWallet)
 	if err != nil {
-		return errors.New("GetCoinBaseScript error")
+		return errors.New("GetCoinBaseScript cbWallet error")
+	}
+
+	for _, masterNode := range masterNodes {
+		var masterNodeVout MasterNodeVout
+		masterNodeVout.Amount = masterNode.Amount
+		masterNodeVout.VoutScript, err = GetCoinBaseScript(masterNode.Payee)
+		if err != nil {
+			return errors.New("GetCoinBaseScript masterNode.Payee error")
+		}
+		t.MasterNodeVouts = append(t.MasterNodeVouts, masterNodeVout)
 	}
 
 	err = t._generateCoinB()

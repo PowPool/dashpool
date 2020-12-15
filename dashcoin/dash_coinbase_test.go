@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/hex"
 	"fmt"
+	"github.com/MiningPool0826/dashpool/rpc"
 	"io"
 	"testing"
 )
@@ -32,7 +33,7 @@ func TestInitialize(t *testing.T) {
 	var cbtx DashCoinBaseTransaction
 	_ = cbtx.Initialize("XiB2rj7PdESyaxJVsnmjhXf9D9bYJjX7ob", 1607055201, 1827, 18492529212, "",
 		"02002307000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
-		"dashpool")
+		"dashpool", []rpc.MasterNode{})
 
 	extraNonce1 := []byte{0x0, 0x0, 0x0, 0x0}
 	extraNonce2 := []byte{0x0, 0x0, 0x0, 0x0}
@@ -65,7 +66,7 @@ func TestRecoverToDashTransaction(t *testing.T) {
 	var cbtx DashCoinBaseTransaction
 	_ = cbtx.Initialize("XiB2rj7PdESyaxJVsnmjhXf9D9bYJjX7ob", 1607055201, 1827, 18492529212, "",
 		"02002307000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
-		"dashpool")
+		"dashpool", []rpc.MasterNode{})
 
 	extraNonce1Hex := "00000000"
 	extraNonce2Hex := "00000000"

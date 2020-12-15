@@ -117,7 +117,7 @@ func (s *ProxyServer) fetchBlockTemplate() {
 
 	var coinBaseTx dashcoin.DashCoinBaseTransaction
 	err = coinBaseTx.Initialize(s.config.UpstreamCoinBase, newTplJob.BlkTplJobTime, newTpl.Height, blkTplReply.CoinBaseValue,
-		blkTplReply.CoinBaseAux.Flags, blkTplReply.CoinbasePayload, s.config.CoinBaseExtraData)
+		blkTplReply.CoinBaseAux.Flags, blkTplReply.CoinbasePayload, s.config.CoinBaseExtraData, blkTplReply.MasterNodes)
 	if err != nil {
 		Error.Printf("Error while initialize coinbase transaction on %s: %s", rpcClient.Name, err)
 		return
