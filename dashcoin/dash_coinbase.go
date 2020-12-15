@@ -236,12 +236,6 @@ func (t *DashCoinBaseTransaction) _generateCoinB() error {
 		if err != nil {
 			return err
 		}
-
-		t.RewardValue -= MasterNodeVout.Amount
-	}
-
-	if t.RewardValue <= 0 {
-		return errors.New("CoinBase Reward <= 0")
 	}
 
 	// pack coin base reward vout

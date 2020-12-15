@@ -115,8 +115,18 @@ func (s *ProxyServer) fetchBlockTemplate() {
 		return
 	}
 
+	coinBaseReward := blkTplReply.CoinBaseValue
+	for _, masterNode := range blkTplReply.MasterNodes {
+		coinBaseReward -= masterNode.Amount
+	}
+
+	if coinBaseReward <= 0 {
+		Error.Printf("Invalid block template, coinBaseReward <= 0")
+		return
+	}
+
 	var coinBaseTx dashcoin.DashCoinBaseTransaction
-	err = coinBaseTx.Initialize(s.config.UpstreamCoinBase, newTplJob.BlkTplJobTime, newTpl.Height, blkTplReply.CoinBaseValue,
+	err = coinBaseTx.Initialize(s.config.UpstreamCoinBase, newTplJob.BlkTplJobTime, newTpl.Height, coinBaseReward,
 		blkTplReply.CoinBaseAux.Flags, blkTplReply.CoinbasePayload, s.config.CoinBaseExtraData, blkTplReply.MasterNodes)
 	if err != nil {
 		Error.Printf("Error while initialize coinbase transaction on %s: %s", rpcClient.Name, err)
@@ -124,7 +134,7 @@ func (s *ProxyServer) fetchBlockTemplate() {
 	}
 	newTplJob.CoinBase1 = hex.EncodeToString(coinBaseTx.CoinBaseTx1)
 	newTplJob.CoinBase2 = hex.EncodeToString(coinBaseTx.CoinBaseTx2)
-	newTplJob.CoinBaseValue = blkTplReply.CoinBaseValue
+	newTplJob.CoinBaseValue = coinBaseReward
 	newTplJob.JobTxsFeeTotal = 0
 	for _, tx := range blkTplReply.Transactions {
 		newTplJob.JobTxsFeeTotal += tx.Fee
