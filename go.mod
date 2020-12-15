@@ -3,7 +3,6 @@ module github.com/MiningPool0826/dashpool
 go 1.14
 
 require (
-	github.com/ethereum/ethash v0.0.0-20170407112842-f5f0a8b19625
 	github.com/ethereum/go-ethereum v1.9.15
 	github.com/garyburd/redigo v1.6.2 // indirect
 	github.com/gorilla/mux v1.7.4
