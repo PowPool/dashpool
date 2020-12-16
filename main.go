@@ -5,6 +5,7 @@ package main
 import (
 	"encoding/json"
 	"errors"
+	"flag"
 	"fmt"
 	"log"
 	"net"
@@ -20,6 +21,13 @@ import (
 	"github.com/MiningPool0826/dashpool/storage"
 	. "github.com/MiningPool0826/dashpool/util"
 	"golang.org/x/crypto/ssh/terminal"
+)
+
+var (
+	LatestTag           = ""
+	LatestTagCommitSHA1 = ""
+	LatestCommitSHA1    = ""
+	BuildTime           = ""
 )
 
 var cfg proxy.Config
@@ -150,7 +158,23 @@ func initPeerName(cfg *proxy.Config) error {
 	return errors.New("local Node is not in the Pool cluster")
 }
 
+func OptionParse() {
+	var showVer bool
+	flag.BoolVar(&showVer, "v", false, "show build version")
+
+	flag.Parse()
+
+	if showVer {
+		fmt.Printf("Latest Tag: %s\n", LatestTag)
+		fmt.Printf("Latest Tag Commit SHA1: %s\n", LatestTagCommitSHA1)
+		fmt.Printf("Latest Commit SHA1: %s\n", LatestCommitSHA1)
+		fmt.Printf("Build Time: %s\n", BuildTime)
+		os.Exit(0)
+	}
+}
+
 func main() {
+	OptionParse()
 	readConfig(&cfg)
 	//rand.Seed(time.Now().UnixNano())
 
