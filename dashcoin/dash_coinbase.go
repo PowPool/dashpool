@@ -60,30 +60,58 @@ func GetCoinBaseScriptByAddress(address string) ([]byte, error) {
 	bytesBuf := bytes.NewBuffer([]byte{})
 	bufWriter := io.Writer(bytesBuf)
 
-	err = serialize.PackByte(bufWriter, script.OP_DUP)
-	if err != nil {
-		return nil, errors.New("pack byte err")
-	}
-	err = serialize.PackByte(bufWriter, script.OP_HASH160)
-	if err != nil {
-		return nil, errors.New("pack byte err")
-	}
-	var addr keyid.KeyID
-	err = addr.SetKeyIDData(addrWithCheck[1:21])
-	if err != nil {
-		return nil, err
-	}
-	err = addr.Pack(bufWriter)
-	if err != nil {
-		return nil, errors.New("pack address err")
-	}
-	err = serialize.PackByte(bufWriter, script.OP_EQUALVERIFY)
-	if err != nil {
-		return nil, errors.New("pack byte err")
-	}
-	err = serialize.PackByte(bufWriter, script.OP_CHECKSIG)
-	if err != nil {
-		return nil, errors.New("pack byte err")
+	if addrWithCheck[0] == byte(76) || addrWithCheck[0] == byte(140) {
+		// p2pkh
+		// mainnet: 76      'X'
+		// testnet: 140     'y'
+		err = serialize.PackByte(bufWriter, script.OP_DUP)
+		if err != nil {
+			return nil, errors.New("pack byte err")
+		}
+		err = serialize.PackByte(bufWriter, script.OP_HASH160)
+		if err != nil {
+			return nil, errors.New("pack byte err")
+		}
+		var addr keyid.KeyID
+		err = addr.SetKeyIDData(addrWithCheck[1:21])
+		if err != nil {
+			return nil, err
+		}
+		err = addr.Pack(bufWriter)
+		if err != nil {
+			return nil, errors.New("pack address err")
+		}
+		err = serialize.PackByte(bufWriter, script.OP_EQUALVERIFY)
+		if err != nil {
+			return nil, errors.New("pack byte err")
+		}
+		err = serialize.PackByte(bufWriter, script.OP_CHECKSIG)
+		if err != nil {
+			return nil, errors.New("pack byte err")
+		}
+	} else if addrWithCheck[0] == byte(16) || addrWithCheck[0] == byte(19) {
+		// p2sh
+		// mainnet: 16   '7'
+		// testnet: 19   '8' or '9'
+		err = serialize.PackByte(bufWriter, script.OP_HASH160)
+		if err != nil {
+			return nil, errors.New("pack byte err")
+		}
+		var addr keyid.KeyID
+		err = addr.SetKeyIDData(addrWithCheck[1:21])
+		if err != nil {
+			return nil, err
+		}
+		err = addr.Pack(bufWriter)
+		if err != nil {
+			return nil, errors.New("pack address err")
+		}
+		err = serialize.PackByte(bufWriter, script.OP_EQUAL)
+		if err != nil {
+			return nil, errors.New("pack byte err")
+		}
+	} else {
+		return nil, errors.New("GetCoinBaseScriptByAddress: Invalid address")
 	}
 
 	return bytesBuf.Bytes(), nil

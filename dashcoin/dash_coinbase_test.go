@@ -19,6 +19,11 @@ func TestGetCoinBaseScriptHex2(t *testing.T) {
 	fmt.Println("coinbaser script:", scriptHex)
 }
 
+func TestGetCoinBaseScriptHex3(t *testing.T) {
+	scriptHex, _ := GetCoinBaseScriptHex("7mFVKKgyfRh6WokCP1UNvBEL2gCygwnACP")
+	fmt.Println("coinbaser script:", scriptHex)
+}
+
 func TestPackNumber(t *testing.T) {
 	s := PackNumber(0x01020304)
 	fmt.Println("packed mumber:", s)
