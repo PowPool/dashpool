@@ -7,6 +7,7 @@ import (
 	"github.com/MiningPool0826/dashpool/goX11"
 	. "github.com/MiningPool0826/dashpool/util"
 	"github.com/mutalisk999/bitcoin-lib/src/blob"
+	"github.com/mutalisk999/txid_merkle_tree"
 	"io"
 	"math/big"
 	"strconv"
@@ -175,7 +176,7 @@ func X11HashVerify(block *Block) bool {
 	Debug.Printf("block.merkleBranch: %v", block.merkleBranch)
 
 	// get merkle root hash
-	merkleRootHex, err := dashcoin.GetMerkleRootHexFromCoinBaseAndMerkleBranch(cbTrxId.GetHex(), block.merkleBranch)
+	merkleRootHex, err := txid_merkle_tree.GetMerkleRootHexFromCoinBaseAndMerkleBranch(cbTrxId.GetHex(), block.merkleBranch)
 	if err != nil {
 		Error.Println("X11HashVerify: GetMerkleRootHexFromCoinBaseAndMerkleBranch error")
 		return false
