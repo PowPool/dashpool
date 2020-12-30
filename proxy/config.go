@@ -10,6 +10,7 @@ import (
 type Config struct {
 	Name                      string        `json:"-"`
 	Id                        uint16        `json:"-"`
+	NodeIp                    string        `json:"-"`
 	Log                       Log           `json:"log"`
 	Cluster                   []ClusterNode `json:"cluster"`
 	Proxy                     Proxy         `json:"proxy"`
@@ -53,8 +54,9 @@ type Proxy struct {
 	MaxFails    int64 `json:"maxFails"`
 	HealthCheck bool  `json:"healthCheck"`
 
-	Stratum    Stratum    `json:"stratum"`
-	DiffAdjust DiffAdjust `json:"diffAdjust"`
+	Stratum      Stratum      `json:"stratum"`
+	WalletNotify WalletNotify `json:"walletNotify"`
+	DiffAdjust   DiffAdjust   `json:"diffAdjust"`
 }
 
 type Stratum struct {
@@ -62,6 +64,11 @@ type Stratum struct {
 	Listen  string `json:"listen"`
 	Timeout string `json:"timeout"`
 	MaxConn int    `json:"maxConn"`
+}
+
+type WalletNotify struct {
+	Enabled bool   `json:"enabled"`
+	Port    uint16 `json:"port"`
 }
 
 type DiffAdjust struct {

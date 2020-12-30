@@ -83,6 +83,22 @@ func NewProxy(cfg *Config, backend *storage.RedisClient) *ProxyServer {
 		go proxy.ListenTCP()
 	}
 
+	if cfg.Proxy.WalletNotify.Enabled {
+		go func(proxy *ProxyServer) {
+			router := mux.NewRouter()
+			router.HandleFunc("/notify/block/{blockhash:[0-9a-fA-F]{64}}", func(w http.ResponseWriter,
+				r *http.Request) {
+				Info.Println("/notify/block/", strings.ToLower(mux.Vars(r)["blockhash"]))
+				proxy.fetchBlockTemplate()
+			})
+			notifyListen := fmt.Sprintf("%s:%d", cfg.NodeIp, cfg.Proxy.WalletNotify.Port)
+			err := http.ListenAndServe(notifyListen, router)
+			if err != nil {
+				Error.Fatalf("Failed to start WalletNotify API: %v", err)
+			}
+		}(proxy)
+	}
+
 	proxy.fetchBlockTemplate()
 
 	proxy.hashrateExpiration = MustParseDuration(cfg.Proxy.HashrateExpiration)

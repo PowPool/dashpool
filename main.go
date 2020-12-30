@@ -152,6 +152,7 @@ func initPeerName(cfg *proxy.Config) error {
 		if ok {
 			cfg.Name = c.NodeName
 			cfg.Id = c.NodeId
+			cfg.NodeIp = c.NodeIp
 			return nil
 		}
 	}

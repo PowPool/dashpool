@@ -174,6 +174,9 @@ func (cs *Session) handleTCPMessage(s *ProxyServer, req *StratumReq) error {
 	case "mining.extranonce.subscribe":
 		return cs.sendTCPResult(req.Id, true)
 
+	case "mining.suggest_difficulty":
+		return cs.sendTCPResult(req.Id, true)
+
 	default:
 		errReply := s.handleUnknownRPC(cs, req.Method)
 		return cs.sendTCPError(req.Id, errReply)

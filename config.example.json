@@ -46,6 +46,11 @@
 			"maxConn": 8192
 		},
 
+		"walletNotify": {
+			"enabled": true,
+			"port": 8018
+		},
+
 		"diffAdjust":{
 			"enabled": false,
 			"adjustInv": "60s",
