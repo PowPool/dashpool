@@ -10,12 +10,12 @@
 		{
 			"nodeName": "pool1",
 			"nodeId": 1,
-			"nodeIp": "172.24.146.33"
+			"nodeIp": "192.168.25.177"
 		},
 		{
 			"nodeName": "pool2",
 			"nodeId": 2,
-			"nodeIp": "172.24.146.37"
+			"nodeIp": "192.168.25.179"
 		},
 		{
 			"nodeName": "test-pool1",
@@ -33,7 +33,7 @@
 		"blockRefreshInterval": "200ms",
 		"blockTemplateInterval": "10s",
 		"stateUpdateInterval": "3s",
-		"difficulty": 90000000,
+		"difficulty": 6000000000000,
 		"hashrateExpiration": "3h",
 
 		"healthCheck": true,
@@ -88,25 +88,25 @@
 	},
 
 	"upstreamCheckInterval": "5s",
-	"upstreamCoinBaseEncrypted": "X/anuih86ocszNESCwJw+KCDe1wce+1Dk7Q4zCBE9a/lnCwydhF7gSkmHvcdwPjk",
+	"upstreamCoinBaseEncrypted": "8RPYZSUONuXigPaEMwnmKLx9CMa/RIP9LIF3ROrLRdlRPmsz83OF8tpC7pBoF4pv",
 	"upstream": [
 		{
 			"name": "main",
-			"url": "http://a:b@192.168.1.124:38990",
+			"url": "http://dashpool:dashpool@192.168.25.177:18001",
 			"timeout": "10s"
 		},
 		{
 			"name": "backup",
-			"url": "http://a:b@192.168.1.124:38990",
+			"url": "http://dashpool:dashpool@192.168.25.179:18001",
 			"timeout": "10s"
 		}
 	],
 
 	"redis": {
-		"endpoint": "192.168.1.124:6379",
+		"endpoint": "192.168.25.177:6379",
 		"poolSize": 10,
 		"database": 0,
-		"passwordEncrypted": "m0lxCSrfYVhmOhZcOhICrw=="
+		"passwordEncrypted": "aw0v8FILnOHJngQU2tClAKy5k6XauEPcojtAsodIhW8="
 	},
 
 	"unlocker": {
@@ -118,7 +118,7 @@
 		"immatureDepth": 3,
 		"keepTxFees": false,
 		"interval": "10m",
-		"daemon": "http://a:b@192.168.1.124:38990",
+		"daemon": "http://dashpool:dashpool@192.168.25.177:18001",
 		"timeout": "10s"
 	},
 
@@ -126,7 +126,7 @@
 		"enabled": false,
 		"requirePeers": 25,
 		"interval": "120m",
-		"daemon": "http://a:b@192.168.1.124:38990",
+		"daemon": "http://dashpool:dashpool@192.168.25.177:18001",
 		"timeout": "10s",
 		"address": "0x0",
 		"gas": "21000",
