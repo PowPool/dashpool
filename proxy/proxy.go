@@ -88,7 +88,7 @@ func NewProxy(cfg *Config, backend *storage.RedisClient) *ProxyServer {
 			router := mux.NewRouter()
 			router.HandleFunc("/notify/block/{blockhash:[0-9a-fA-F]{64}}", func(w http.ResponseWriter,
 				r *http.Request) {
-				Info.Println("/notify/block/", strings.ToLower(mux.Vars(r)["blockhash"]))
+				Info.Printf("/notify/block/%s", strings.ToLower(mux.Vars(r)["blockhash"]))
 				proxy.fetchBlockTemplate()
 			})
 			notifyListen := fmt.Sprintf("%s:%d", cfg.NodeIp, cfg.Proxy.WalletNotify.Port)
