@@ -1,12 +1,9 @@
 package util
 
 import (
-	"bytes"
 	"encoding/hex"
 	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/mutalisk999/bitcoin-lib/src/base58"
 	"github.com/mutalisk999/bitcoin-lib/src/bigint"
-	"github.com/mutalisk999/bitcoin-lib/src/utility"
 	"math/big"
 	"regexp"
 	"strconv"
@@ -33,19 +30,23 @@ var zeroHash = regexp.MustCompile("^0?x?0+$")
 //	return true
 //}
 
+//func IsValidDashAddress(address string) bool {
+//	addrWithCheck, err := base58.Decode(address)
+//	if err != nil {
+//		return false
+//	}
+//	if len(addrWithCheck) != 25 {
+//		return false
+//	}
+//	check1 := utility.Sha256(utility.Sha256(addrWithCheck[0:21]))[0:4]
+//	check2 := addrWithCheck[21:25]
+//	if bytes.Compare(check1, check2) != 0 {
+//		return false
+//	}
+//	return true
+//}
+
 func IsValidDashAddress(address string) bool {
-	addrWithCheck, err := base58.Decode(address)
-	if err != nil {
-		return false
-	}
-	if len(addrWithCheck) != 25 {
-		return false
-	}
-	check1 := utility.Sha256(utility.Sha256(addrWithCheck[0:21]))[0:4]
-	check2 := addrWithCheck[21:25]
-	if bytes.Compare(check1, check2) != 0 {
-		return false
-	}
 	return true
 }
 
