@@ -13,10 +13,10 @@ import (
 
 	"github.com/gorilla/mux"
 
-	"github.com/MiningPool0826/dashpool/policy"
-	"github.com/MiningPool0826/dashpool/rpc"
-	"github.com/MiningPool0826/dashpool/storage"
-	. "github.com/MiningPool0826/dashpool/util"
+	"github.com/PowPool/dashpool/policy"
+	"github.com/PowPool/dashpool/rpc"
+	"github.com/PowPool/dashpool/storage"
+	. "github.com/PowPool/dashpool/util"
 )
 
 type ProxyServer struct {

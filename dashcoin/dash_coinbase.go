@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/hex"
 	"errors"
-	"github.com/MiningPool0826/dashpool/rpc"
+	"github.com/PowPool/dashpool/rpc"
 	"github.com/mutalisk999/bitcoin-lib/src/base58"
 	"github.com/mutalisk999/bitcoin-lib/src/keyid"
 	"github.com/mutalisk999/bitcoin-lib/src/pubkey"

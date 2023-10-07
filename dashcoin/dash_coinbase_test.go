@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/hex"
 	"fmt"
-	"github.com/MiningPool0826/dashpool/rpc"
+	"github.com/PowPool/dashpool/rpc"
 	"io"
 	"testing"
 )

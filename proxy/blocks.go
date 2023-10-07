@@ -3,9 +3,9 @@ package proxy
 import (
 	"bytes"
 	"encoding/hex"
-	"github.com/MiningPool0826/dashpool/dashcoin"
-	"github.com/MiningPool0826/dashpool/rpc"
-	. "github.com/MiningPool0826/dashpool/util"
+	"github.com/PowPool/dashpool/dashcoin"
+	"github.com/PowPool/dashpool/rpc"
+	. "github.com/PowPool/dashpool/util"
 	"github.com/mutalisk999/bitcoin-lib/src/utility"
 	"github.com/mutalisk999/txid_merkle_tree"
 	"io"
